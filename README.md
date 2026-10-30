@@ -49,7 +49,7 @@ npm install
 npm start          # runs the brain and the face together
 ```
 
-Then open the URL it prints (http://localhost:5173) in **Chrome**, click **INITIALISE**, and say **“Hey Jarvis”**.
+Then open the URL it prints (http://localhost:5173) in **Chrome**, click **INICIAR JARVIS**, allow microphone access, and say **“Ei, Jarvis”**.
 
 Prefer two terminals? Run them separately instead:
 
@@ -75,7 +75,7 @@ Then open the app in a **real Chrome or Edge window**:
 open http://localhost:5173
 ```
 
-Click **INITIALISE**, allow the microphone when asked, and say **"Hey Jarvis"**.
+Click **INICIAR JARVIS**, allow the microphone when asked, and say **"Ei, Jarvis"**.
 
 > It has to be a real browser window. Embedded preview panes block the
 > microphone, so JARVIS will look perfectly alive and simply never respond.
@@ -89,7 +89,7 @@ the brain and the hands.
 
 ```
   ┌─ browser (the face) ───────────────┐        ┌─ bridge (the brain) ─────────────┐
-  │  "Hey Jarvis" wake word            │        │  Node · bridge/server.mjs        │
+  │  "Ei, Jarvis" wake word             │        │  Node · bridge/server.mjs        │
   │  local VAD  →  speech to text      │   ws   │  Claude Agent SDK                │
   │  reactor UI (Three.js + GLSL)      │◄─────► │   = Claude Code, headless        │
   │  text to speech                    │  8787  │  spawns your MCP servers         │
@@ -120,15 +120,19 @@ The loop is designed so that nothing silently dies and barge-in feels natural.
   (`src/lib/vad.ts`) decides when you are speaking. It is instant, cannot quietly
   fail, and is what makes **barge-in** work — speak while JARVIS is talking and he
   stops.
+- **Portuguese is the default language.** Browser speech recognition is set to
+  Brazilian Portuguese (`pt-BR`), ElevenLabs Scribe is pinned to Portuguese,
+  and JARVIS's system prompt asks for natural Brazilian Portuguese replies.
 - **Transcription has two tiers, chosen automatically at boot.** The browser asks
   the bridge `/health` and picks the best available:
-  - **ElevenLabs key present** → ElevenLabs Scribe, via the bridge `/stt` endpoint.
+  - **ElevenLabs key present** → Scribe v2, via the bridge `/stt` endpoint.
   - **Nothing configured** → the browser's own `SpeechRecognition` (Chrome/Edge),
     guarded by a heartbeat so it recovers when Chrome throttles it.
 - **Speaking** uses the **ElevenLabs voice when a key is present**, and the
   browser's `speechSynthesis` otherwise. If a cloud call fails it falls back to
-  the browser voice, and if the OS voice itself is broken it latches over to the
-  cloud voice.
+  a Brazilian Portuguese system voice, and if the OS voice itself is broken it
+  latches over to the cloud voice. The selected ElevenLabs voice ID is retained;
+  it needs an ElevenLabs key to be used.
 
 So it works with no keys and auto-upgrades when a key appears — there is no flag
 to set. Capability detection lives in `src/lib/capabilities.ts`, which probes the
@@ -179,6 +183,30 @@ He drives the UI through MCP tools the bridge exposes:
 So *"make it red, hide the systems list, put that render in orbit"* is a spoken
 command.
 
+### Personal context and accounts
+
+Open **MEU JARVIS** in the upper-right corner or press **P** to set a name,
+preferred form of address, and personal context. Jarvis stores this profile in
+the current browser's local storage. When **Use this context with my questions**
+is enabled, those details are included with each question sent to Claude; turn
+it off or clear the profile at any time. Clearing the local profile does not
+remove details already sent in the current Claude conversation.
+
+The console lists MCP servers available through the local bridge. Add account
+servers with **user scope** in Claude Code (`claude mcp add ... --scope user`),
+finish any sign-in flow, then restart the bridge. Jarvis reads the user-scoped
+server configuration from `~/.claude.json` at startup. Only connect services
+you want Jarvis to read. Actions that change or send data remain behind the
+bridge's write permission gate. Connected services are queried when a question
+needs them; JARVIS does not copy entire accounts into the local profile.
+
+### Mission control demonstration
+
+The dashboard shows example agenda items, priorities, sales, campaign metrics
+for Meta Ads/UTMify and news modules before accounts are connected. Every
+number and appointment is labelled as illustrative; live information will only
+appear after its source is connected and queried.
+
 ### The heads-up display
 
 JARVIS authors panels with a `display` tool against a fixed `.hud-*` design
@@ -195,10 +223,11 @@ chose.
 
 | Key / phrase | Does |
 |---|---|
-| **"Hey Jarvis"** | Wake him |
+| **"Ei, Jarvis"** or **"Hey Jarvis"** | Wake him |
 | **Space** | Talk without the wake word |
 | Just speak | Interrupt him mid-sentence (barge-in) |
 | **V** | Cycle the browser voice |
+| **P** | Open the personal context and connections console |
 | **Escape** | Stand down |
 | **D** | Live diagnostics panel |
 | **T** | One-line audio self-test |
@@ -231,7 +260,7 @@ Everything is optional in bridge mode. Frontend settings live in `.env.local`
 | `JARVIS_ALLOWED_ORIGINS` | local dev | Extra WebSocket origins to accept |
 | `JARVIS_ALLOW_NO_ORIGIN` | off | Accept connections with no `Origin` header |
 | `JARVIS_FILE_ROOTS` | — | Roots the `/file` endpoint may serve from |
-| `JARVIS_VOICE_ID` | — | ElevenLabs voice id |
+| `JARVIS_VOICE_ID` | `wDsJlOXPqcvIUKdLXjDs` | ElevenLabs voice id |
 | `ELEVENLABS_API_KEY` | — | Optional; enables the ElevenLabs voice + Scribe |
 
 ### Frontend (`.env.local`)
@@ -281,6 +310,60 @@ npm run bridge:writes
 
 ## Troubleshooting
 
+### Voz em português e acompanhamento das consultas
+
+O painel à direita mostra ações observáveis: integração consultada, período,
+resultado da consulta e reprodução de voz. Clique em uma etapa para ver a fonte
+e as datas. As etapas permanecem disponíveis depois da resposta. O olho volta
+seu olhar para esse painel durante as consultas.
+
+O faturamento é lido por `jarvis_sales.get_sales_summary`: o código resolve o
+período no fuso do dashboard e converte os valores da UTMify de centavos para a
+moeda informada. O resumo bruto da UTMify não fica disponível ao modelo.
+
+Sem chave ElevenLabs, a instalação local pode usar a voz masculina brasileira
+Antônio do serviço online Microsoft Edge, através de `edge-tts`. O texto falado
+é enviado ao serviço de voz da Microsoft; exige internet. Para preparar em outra
+máquina, com Python instalado, execute no PowerShell:
+
+```powershell
+python -m venv .venv-voice
+.\.venv-voice\Scripts\python.exe -m pip install -r requirements-voice.txt
+npm start
+```
+
+Se o serviço não responder, o Jarvis recorre à voz do sistema. Uma chave
+ElevenLabs configurada mantém prioridade. Perguntas digitadas não são
+interrompidas pelo áudio ambiente e retornam ao modo de espera ao terminar.
+
+### Mercado global e notícias
+
+O painel superior mostra USD, EUR e GBP em reais, e o real em dólares. As taxas
+vêm da Frankfurter, com data de referência e variação sobre a referência
+anterior. São taxas diárias, não preços de negociação em tempo real. Clique
+em uma moeda para abrir o conversor; os cálculos entre BRL, USD, EUR e GBP são
+feitos no código, usando taxas de uma mesma data.
+
+O radar inferior recebe manchetes da Agência Brasil, BBC Brasil e G1 Tecnologia,
+com editorias Geral, Economia, Tecnologia e Mundo. Use as setas, expanda a lista,
+abra a fonte ou peça ao Jarvis um resumo. A conversa usa as ferramentas
+`jarvis_world.get_exchange_rates`, `convert_currency` e `get_news`.
+
+Não precisa de chave adicional. Os dados públicos passam pelo backend, com
+cache de 10 minutos para câmbio e 5 minutos para notícias. As fontes são fixas;
+conteúdo externo é tratado como dados. Se uma atualização falhar, um dado
+anterior é identificado como sem nova confirmação. Nenhum valor de exemplo
+substitui um resultado indisponível.
+
+### Jev opcional
+
+O classificador Jev pode ser configurado com `TYPESAFE_API_KEY` no ambiente do
+backend, ou com `powershell -File scripts/setup-jev.ps1`. A configuração local
+`jev.config.local` é ignorada pelo Git. Reinicie o servidor após configurar.
+O endpoint `/health` informa se está configurado; uma falha ou limite de espera
+mantém o fluxo normal da conversa. A criação da chave depende de créditos na
+conta TypeSafe.
+
 **I can't hear him, or he can't hear me.** Press **D** for the diagnostics panel
 — it states plainly whether he is hearing you and whether he is producing sound.
 Press **T** for a one-line audio self-test.
@@ -294,6 +377,18 @@ terminal, and that nothing else is holding port `8787`.
 ---
 
 ## Security
+
+Para hospedar a mesma interface no Railway, use o `Dockerfile` e siga
+[deploy/RAILWAY.md](deploy/RAILWAY.md). A versao hospedada exige usuario e senha;
+as credenciais Claude e UTMify ficam nas variaveis do servico.
+
+Para copiar para outro PC Windows, leia [LEIA-ME-PORTATIL.txt](LEIA-ME-PORTATIL.txt). Execute
+`pwsh -NoProfile -File scripts/package-windows.ps1` para gerar um ZIP em
+`output/entrega`, sem credenciais ou configurações pessoais. O ZIP inclui Node,
+Python, voz neural, Claude Code e o painel compilado para Windows x64. O destinatário
+extrai a pasta, conecta a própria conta em `Conectar Claude.cmd` e abre
+`Iniciar Jarvis.cmd`. Nenhum serviço de hospedagem é necessário. Claude e as
+integrações online usam internet e mantêm seus próprios requisitos de acesso.
 
 All of this lives in `bridge/server.mjs`:
 

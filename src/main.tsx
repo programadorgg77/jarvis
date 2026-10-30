@@ -1,5 +1,9 @@
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './ocular.css'
+import './world.css'
+import './neural.css'
+import './reference.css'
 import App from './App.tsx'
 
 // Deliberately no StrictMode: its double-invoked effects would open the

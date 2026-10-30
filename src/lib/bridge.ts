@@ -1,5 +1,5 @@
 import type { AskHandlers } from './anthropic'
-import type { Blade, Panel } from '../store'
+import type { ActivityEvent, Blade, Panel } from '../store'
 import { BRIDGE_WS_URL } from '../config'
 
 /**
@@ -20,10 +20,12 @@ import { BRIDGE_WS_URL } from '../config'
  *  bridge build should be ignored, not crash the turn. */
 type Frame = {
   type?: string
+  activity?: ActivityEvent
   delta?: string
   name?: string
   text?: string
   message?: string
+  error?: string
   panel?: Panel
   blade?: Blade
   op?: string
@@ -272,7 +274,8 @@ function connect(): Promise<WebSocket> {
         ),
       )
     }
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      if (event.code === 4101) window.location.assign('/login')
       // A close before open is just a failed dial; after open it's a lost
       // session, and the two want different handling.
       settle(new Error('The bridge closed the connection.'))
@@ -303,12 +306,12 @@ export async function warmBridge(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * No frame of any kind for two minutes means the turn is never coming back.
- * Generous on purpose: a long agent run can sit silent through a slow tool,
- * and cutting a real answer off is worse than waiting. What this catches is
- * the case that used to hang forever — the bridge alive but the turn lost.
+ * A quiet tool call or a turn with no overall deadline used to leave the
+ * conversation spinning for minutes. Allow a reasonable pause for tools, but
+ * bound both inactivity and total time so the caller can recover and ask again.
  */
-const IDLE_TIMEOUT_MS = 120_000
+const IDLE_TIMEOUT_MS = 45_000
+const MAX_TURN_TIMEOUT_MS = 120_000
 
 /** The turn in flight, so a barge-in can settle it locally. */
 let pending: { finish: (fallback?: string) => void } | null = null
@@ -367,6 +370,7 @@ export async function ask(
   const id = `a${++askSeq}`
   const tools: string[] = []
   let text = ''
+  let deadline = 0
 
   return new Promise((resolve, reject) => {
     let done = false
@@ -376,6 +380,7 @@ export async function ask(
       done = true
       pending = null
       clearTimeout(timer)
+      clearTimeout(deadline)
       ws.removeEventListener('message', onMessage)
       ws.removeEventListener('close', onClose)
       ws.removeEventListener('error', onError)
@@ -398,14 +403,18 @@ export async function ask(
     const arm = () => {
       clearTimeout(timer)
       timer = window.setTimeout(() => {
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'interrupt' }))
+          }
+        } catch {
+          // The local turn still needs to settle if the socket died too.
+        }
         fail(new Error('The bridge went quiet — that turn was lost, sir.'))
       }, IDLE_TIMEOUT_MS)
     }
 
     const onMessage = (e: MessageEvent) => {
-      // Any frame at all is proof of life, including ones this turn ignores.
-      arm()
-
       let msg: Frame
       try {
         msg = JSON.parse(e.data as string)
@@ -426,9 +435,13 @@ export async function ask(
        * ask for BRAVO, and BRAVO's answer came back as "ALPHA".
        */
       if (msg.ask && msg.ask !== id) return
+      if (msg.ask === id) arm()
 
       try {
         switch (msg.type) {
+          case 'activity':
+            if (msg.activity?.id && msg.activity.label) handlers.onActivity?.(msg.activity)
+            break
           case 'text':
             text += msg.delta ?? ''
             handlers.onText(msg.delta ?? '')
@@ -441,6 +454,13 @@ export async function ask(
             break
 
           case 'done':
+            // Some Agent SDK versions emit the final result without streaming
+            // text deltas. Recover that text through the same path that feeds
+            // both the transcript and the speaker before settling the turn.
+            if (!text.trim() && msg.text?.trim()) {
+              text = msg.text
+              handlers.onText(msg.text)
+            }
             finish(msg.text ?? '')
             break
 
@@ -465,6 +485,16 @@ export async function ask(
     ws.addEventListener('close', onClose)
     ws.addEventListener('error', onError)
     arm()
+    deadline = window.setTimeout(() => {
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'interrupt' }))
+        }
+      } catch {
+        // The local turn still needs to settle if the socket died too.
+      }
+      fail(new Error('A resposta excedeu o tempo limite. Tente perguntar novamente.'))
+    }, MAX_TURN_TIMEOUT_MS)
 
     try {
       ws.send(JSON.stringify({ type: 'ask', text: prompt, id }))

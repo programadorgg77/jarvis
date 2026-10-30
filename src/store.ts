@@ -1,5 +1,16 @@
 import { create } from 'zustand'
 
+export type Activity = {
+  id: string
+  kind: 'analysis' | 'search' | 'data' | 'browser' | 'response' | 'voice'
+  label: string
+  detail?: string
+  status: 'running' | 'done' | 'error' | 'cancelled'
+  startedAt: number
+  finishedAt?: number
+}
+export type ActivityEvent = Omit<Activity, 'startedAt' | 'finishedAt'>
+
 export type Phase =
   | 'offline'   // waiting for the click that unlocks audio
   | 'boot'      // startup sequence
@@ -210,7 +221,22 @@ function defined<T extends object>(patch: T | undefined): Partial<T> {
  */
 const MAX_ORBITS = 8
 
+export type BusinessSnapshot = {
+  source: string
+  period: string
+  queryPeriod?: 'today' | 'yesterday' | 'this_month' | 'last_month' | 'last_7_days' | 'custom'
+  currency: 'BRL' | 'USD' | 'EUR' | 'GBP'
+  revenue: number | null
+  spend: number | null
+  orders: number | null
+  roas: number | null
+  series: { label: string; value: number }[]
+  queriedAt: string
+}
+
 type State = {
+  businessSnapshot: BusinessSnapshot | null
+  setBusinessSnapshot: (snapshot: BusinessSnapshot) => void
   phase: Phase
   /** 0..1 mic loudness, drives the reactor pulse. */
   level: number
@@ -218,6 +244,10 @@ type State = {
   caption: string
   turns: Turn[]
   activeTool: string | null
+  activities: Activity[]
+  beginActivities: () => void
+  recordActivity: (event: ActivityEvent) => void
+  finishActivities: (status: 'done' | 'error' | 'cancelled') => void
   error: string | null
   connected: string[]
   /** Name of the speech-synthesis voice in use, shown in the HUD. */
@@ -271,11 +301,21 @@ type State = {
 }
 
 export const useStore = create<State>((set) => ({
+  businessSnapshot: null,
+  setBusinessSnapshot: (businessSnapshot) => set({ businessSnapshot }),
   phase: 'offline',
   level: 0,
   caption: '',
   turns: [],
   activeTool: null,
+  activities: [],
+  beginActivities: () => set({ activities: [{ id: 'understand', kind: 'analysis', label: 'Analisando sua solicitação', detail: 'Identificando o que precisa ser consultado', status: 'running', startedAt: Date.now() }] }),
+  recordActivity: (event) => set((s) => {
+    const previous = s.activities.find((item) => item.id === event.id)
+    const activity: Activity = { ...previous, ...event, startedAt: previous?.startedAt ?? Date.now(), finishedAt: event.status === 'running' ? undefined : previous?.finishedAt ?? Date.now() }
+    return { activities: previous ? s.activities.map((item) => item.id === event.id ? activity : item) : [...s.activities.slice(-15), activity] }
+  }),
+  finishActivities: (status) => set((s) => ({ activities: s.activities.map((item) => item.status === 'running' ? { ...item, status, finishedAt: Date.now() } : item) })),
   error: null,
   connected: [],
   voice: '',
@@ -417,14 +457,14 @@ export const useStore = create<State>((set) => ({
 
 /** Colour identity per phase — shared by the 3D scene and the 2D HUD. */
 export const phaseColor: Record<Phase, string> = {
-  offline: '#0d4a4a',
-  boot: '#17b3b3',
-  dormant: '#12908f',
-  waking: '#5cf2ef',
-  listening: '#19d8d2',
-  thinking: '#f0a93c',
-  tooling: '#a97bff',
-  speaking: '#3ef2a8',
+  offline: '#b9aed4',
+  boot: '#c7badd',
+  dormant: '#c7badd',
+  waking: '#f68c42',
+  listening: '#f68c42',
+  thinking: '#e3a16d',
+  tooling: '#db8c59',
+  speaking: '#ff8c3d',
 }
 
 /**

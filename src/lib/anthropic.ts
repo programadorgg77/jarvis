@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { env, MODEL, FAST_MODE, SYSTEM_PROMPT, activeServers } from '../config'
+import type { ActivityEvent } from '../store'
 
 /**
  * The Claude API supports CORS, so the browser can talk to it directly — no
@@ -19,6 +20,7 @@ export type AskHandlers = {
   onText: (delta: string) => void
   /** Fires when Claude starts running a remote tool. */
   onTool: (name: string) => void
+  onActivity?: (activity: ActivityEvent) => void
 }
 
 /** The stream for the turn in flight, so a barge-in can abort it. Without this
@@ -36,6 +38,7 @@ let cancelled = false
  * than keep the user in silence.
  */
 const MAX_CONTINUATIONS = 3
+const TURN_TIMEOUT_MS = 120_000
 
 /**
  * One turn of conversation.
@@ -95,9 +98,12 @@ export async function ask(
 
       const stream = client.beta.messages.stream({ ...params, messages })
       active = stream
+      let turnText = ''
+      const deadline = window.setTimeout(() => stream.abort(), TURN_TIMEOUT_MS)
 
       stream.on('text', (delta) => {
         text += delta
+        turnText += delta
         handlers.onText(delta)
       })
 
@@ -129,6 +135,7 @@ export async function ask(
         if (cancelled) return { text: text.trim(), tools: usedTools }
         throw err
       } finally {
+        window.clearTimeout(deadline)
         active = null
       }
 
@@ -141,9 +148,23 @@ export async function ask(
       // App speaks the deltas; the returned text only feeds history, so a line
       // that is merely returned is a line nobody ever hears.
       if (final.stop_reason === 'refusal') {
-        const line = "I can't help with that one, sir."
+        const line = 'Não posso ajudar com esse pedido.'
         handlers.onText(line)
         return { text: line, tools: usedTools }
+      }
+
+      // Recover the completed assistant text if this SDK response did not emit
+      // text events. Without this, ask() could return a full answer while the
+      // transcript and voice remained empty.
+      if (!turnText.trim()) {
+        const recovered = final.content
+          .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('')
+        if (recovered) {
+          text += recovered
+          handlers.onText(recovered)
+        }
       }
 
       if (final.stop_reason === 'max_tokens') {

@@ -1,6 +1,7 @@
 import { BRIDGE_HTTP_URL } from '../config'
 import { getMic } from './audio'
 import { speakingNow, speakingSince } from './tts'
+import { INTERRUPT_COMMAND as OVERRIDE } from './voiceInterrupt'
 import { startVad, type Vad } from './vad'
 import { caps } from './capabilities'
 
@@ -49,6 +50,8 @@ export type VoiceHandlers = {
   onUtterance: (text: string) => void
   /** The recogniser is unusable. Distinct from the user saying nothing. */
   onError: (message: string) => void
+  /** An actual transcript arrived after a recoverable recognition failure. */
+  onRecovered?: () => void
 }
 
 export type Voice = {
@@ -78,7 +81,7 @@ const WAKE_DEBOUNCE = 1500
  * indication why. Better a rare false wake than a name that does not answer.
  */
 const WAKE =
-  /\b(?:hey|hi|ok|okay|yo)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv)\b(?!'s)/i
+  /\b(?:hey|hi|ok|okay|yo|ei|oi)?\s*(?:jarvis|jarvys|jervis|jarvis's|travis|jarviss|java's|jarv)\b(?!'s)/i
 
 /** Everything after the wake phrase, which is usually the actual command. */
 function afterWake(text: string): string {
@@ -123,7 +126,8 @@ function afterWake(text: string): string {
  * last word of a real request.
  */
 const CONTINUES =
-  /\b(and|or|but|so|because|since|if|when|while|that|which|who|whose|to|of|in|on|at|by|for|with|from|about|into|onto|over|under|between|through|the|a|an|my|your|his|her|its|our|their|is|are|was|were|be|been|do|does|did|have|has|had|can|could|would|should|will|shall|might|must|like|than|then|as|very|really|just|some|any|all|both|either|neither)$/i
+  /\b(and|or|but|so|because|since|if|when|while|that|which|who|whose|to|of|in|on|at|by|for|with|from|about|into|onto|over|under|between|through|the|a|an|my|your|his|her|its|our|their|is|are|was|were|be|been|do|does|did|have|has|had|can|could|would|should|will|shall|might|must|like|than|then|as|very|really|just|some|any|all|both|either|neither|e|ou|mas|porque|pois|se|quando|enquanto|que|quem|cujo|para|de|do|da|dos|das|em|no|na|nos|nas|ao|aos|com|por|sobre|entre|até|meu|minha|meus|minhas|seu|sua|seus|suas|ele|ela|eles|elas|é|são|foi|foram|ser|estar|está|estão|tem|têm|tenho|pode|podem|poderia|deve|devem|vai|vou|vamos|muito|mais|menos|também|não|nao|algum|alguma|alguns|algumas|todo|toda|todos|todas)$/i
+const CONTINUES_PT = /\b(e|ou|mas|porque|pois|se|quando|enquanto|que|quem|para|de|do|da|dos|das|em|no|na|nos|nas|ao|aos|com|por|sobre|entre|ate|meu|minha|meus|minhas|seu|sua|seus|suas|ele|ela|eles|elas|e|sao|foi|foram|ser|estar|esta|estao|tem|tenho|pode|podem|poderia|deve|devem|vai|vou|vamos|muito|mais|menos|tambem|nao|algum|alguma|alguns|algumas|todo|toda|todos|todas)$/i
 
 /** Trailing punctuation a transcriber emits mid-thought. */
 const TRAILS = /[,;:–—-]$/
@@ -172,7 +176,8 @@ function holdFor(text: string): number {
   // An explicit terminator is the speaker telling us they are done.
   if (/[.!?]$/.test(text)) return 0
   if (TRAILS.test(text.trim())) return CONTINUE_MS
-  if (CONTINUES.test(words[words.length - 1])) return CONTINUE_MS
+  const lastWord = words[words.length - 1]
+  if (CONTINUES.test(lastWord) || CONTINUES_PT.test(norm(lastWord))) return CONTINUE_MS
   // One or two words is usually the start of something, not the whole of it —
   // except for the short commands that genuinely are complete.
   if (words.length <= 2 && !OVERRIDE.test(text)) return CONTINUE_MS
@@ -257,6 +262,8 @@ function makeAssembler(h: {
 const norm = (s: string) =>
   s
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9' ]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -266,9 +273,6 @@ const norm = (s: string) =>
  * he happens to be saying. Suppressing "stop" because he just said "stop"
  * would be the single most infuriating failure this file could have.
  */
-const OVERRIDE =
-  /\b(stop|wait|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b/i
-
 /**
  * Words too common to be evidence of anything.
  *
@@ -284,7 +288,7 @@ const STOP = new Set(
     'our their what which who how why when where do does did can could would ' +
     'should will shall not no yes if then than as about into over under out up ' +
     'down one two three first second third now here there just very really got ' +
-    'get have has had say said tell me okay ok well right').split(' '),
+    'get have has had say said tell me okay ok well right e ou mas porque pois se quando enquanto que para de do da dos das em no na nos nas ao aos com por sobre entre ate meu minha meus minhas seu sua seus suas ele ela eles elas e sao foi foram ser estar esta estao tem tenho pode podem poderia deve devem vai vou vamos muito mais menos tambem nao algum alguma alguns algumas todo toda todos todas voce voces eu nos aqui ali agora').split(' '),
 )
 
 /**
@@ -393,8 +397,8 @@ export async function startVoice(h: VoiceHandlers): Promise<Voice> {
     diag.lastError = 'mic'
     h.onError(
       err instanceof DOMException && err.name === 'NotAllowedError'
-        ? 'Microphone access denied — voice input is unavailable.'
-        : 'No microphone available.',
+        ? 'Acesso ao microfone negado. Libere o microfone nas configurações do site e recarregue a página.'
+        : 'Nenhum microfone disponível.',
     )
     return { stop: () => {}, live: () => false }
   }
@@ -603,7 +607,8 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
   const Ctor =
     (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
   if (!Ctor) {
-    h.onError('This browser has no speech recognition — use Chrome or Edge, or add an ElevenLabs key.')
+    diag.lastError = 'unsupported'
+    h.onError('Este navegador não oferece reconhecimento de voz. Abra o Jarvis no Microsoft Edge ou Google Chrome. Você também pode digitar sua pergunta.')
     return { stop: () => {}, live: () => false }
   }
 
@@ -616,6 +621,8 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
   let barged = false
   let lastWake = 0
   let lastAlive = Date.now()
+  let networkFailures = 0
+  let retryDelay = 80
   let silenceTimer: ReturnType<typeof setTimeout> | null = null
 
   /** Same assembly rules as the premium path — a pause is not a full stop. */
@@ -685,6 +692,10 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
 
   const onResult = (e: any) => {
     touch()
+    if (networkFailures) h.onRecovered?.()
+    networkFailures = 0
+    retryDelay = 80
+    diag.lastError = ''
     const mode = h.mode()
     diag.mode = mode
     if (mode === 'deaf') {
@@ -760,7 +771,7 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     rec = new Ctor()
     rec.continuous = true
     rec.interimResults = true
-    rec.lang = 'en-GB'
+    rec.lang = 'pt-BR'
     rec.onstart = () => {
       running = true
       diag.running = true
@@ -770,10 +781,15 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     rec.onresult = onResult
     rec.onerror = (ev: any) => {
       diag.lastError = String(ev.error ?? '')
+      if (ev.error === 'network') {
+        networkFailures++
+        retryDelay = Math.min(8000, 1000 * 2 ** Math.min(networkFailures - 1, 3))
+        if (networkFailures === 3) h.onError('Falha no serviço de reconhecimento de voz deste navegador. Confira a conexão ou abra o Jarvis no Microsoft Edge ou Google Chrome. Você pode continuar digitando.')
+      }
       if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
         stopped = true
         diag.running = false
-        h.onError('Microphone access was refused — voice input is unavailable.')
+        h.onError('Acesso ao microfone recusado. Libere o microfone nas configurações do site e recarregue a página.')
       }
     }
     rec.onend = () => {
@@ -781,7 +797,7 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
       diag.running = false
       touch()
       rec = null
-      if (!stopped) setTimeout(spin, 80)
+      if (!stopped) setTimeout(spin, retryDelay)
     }
     try {
       rec.start()

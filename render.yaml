@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: jarvis
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /ready
+    envVars:
+      - key: JARVIS_ACCESS_USER
+        value: jarvis
+      - key: JARVIS_ACCESS_PASSWORD
+        generateValue: true
+      - key: CLAUDE_CODE_OAUTH_TOKEN
+        sync: false
+      - key: UTMIFY_MCP_URL
+        sync: false

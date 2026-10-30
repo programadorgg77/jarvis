@@ -119,8 +119,8 @@ function track(cue: Cue): Track | null {
 /** Must be called from a user gesture — browsers block audio before one. */
 export function enable() {
   enabled = true
-  // Warm the files so the boot cue starts on time rather than after a buffer.
-  ALL.forEach(track)
+  // Startup is silent; only prepare the cue used during tool calls.
+  track('work')
 }
 
 /**

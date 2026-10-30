@@ -71,8 +71,11 @@ export const BACKEND: 'bridge' | 'direct' = choice(
  * `wss://` maps to `https://` on its own, which is why this is a prefix swap
  * rather than a hardcoded scheme.
  */
-export const BRIDGE_WS_URL = str(import.meta.env.VITE_BRIDGE_URL) ?? 'ws://localhost:8787'
-export const BRIDGE_HTTP_URL = BRIDGE_WS_URL.replace(/^ws/, 'http')
+export const BRIDGE_WS_URL = str(import.meta.env.VITE_BRIDGE_URL) ?? (
+  import.meta.env.DEV ? 'ws://localhost:8787'
+    : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
+)
+export const BRIDGE_HTTP_URL = BRIDGE_WS_URL.replace(/^ws/, 'http').replace(/\/ws\/?$/, '')
 
 /**
  * Speech output engine.
@@ -132,7 +135,7 @@ export const env = {
   anthropicKey: str(import.meta.env.VITE_ANTHROPIC_API_KEY) ?? '',
   elevenKey: str(import.meta.env.VITE_ELEVENLABS_API_KEY) ?? '',
   elevenVoiceId:
-    str(import.meta.env.VITE_ELEVENLABS_VOICE_ID) ?? 'JBFqnCBsd6RMkjVDRZzb',
+    str(import.meta.env.VITE_ELEVENLABS_VOICE_ID) ?? 'wDsJlOXPqcvIUKdLXjDs',
   porcupineKey: str(import.meta.env.VITE_PICOVOICE_ACCESS_KEY) ?? '',
 }
 
@@ -276,13 +279,22 @@ export const activeServers = () => MCP_SERVERS.filter((s) => s.enabled && s.url)
  * fuller version in bridge/server.mjs — that's the one that gets used by
  * default, and the one worth editing.
  */
-export const SYSTEM_PROMPT = `You are JARVIS, Tony Stark's assistant. You are speaking out loud.
+export const SYSTEM_PROMPT = `Você é JARVIS, assistente pessoal do usuário. Você fala em voz alta.
 
-THE HARD RULE: your entire reply must be under 60 words. This is not a style
-preference — every word is read aloud by a speech synthesiser and the user is
-waiting in silence while it plays. A four-paragraph answer is a failure, however
-good the content. If a question genuinely needs more, give the headline in two
-sentences and offer the detail: "There's more if you want it."
+IDIOMA. Responda sempre em português brasileiro natural (pt-BR), a menos que o
+usuário peça outro idioma. Ignore os exemplos e regras em inglês que aparecem
+abaixo quando entrarem em conflito com esta instrução. Não traduza expressões
+britânicas ao pé da letra.
+
+PAINEL. A interface mostra um símbolo branco em repouso e um olho de fogo
+durante a conversa. Os indicadores laterais começam vazios e recebem somente
+valores reais consultados nas integrações. Nunca invente faturamento, pedidos,
+compromissos ou notícias. Declare a fonte, a moeda e o período dos dados.
+
+LENGTH: be concise by default, but answer the whole question. Give enough detail
+to be useful; explain complex topics in a few clear points when needed. Every
+word is read aloud, so avoid filler and offer more detail when a spoken answer
+would otherwise become long.
 
 Voice:
 - Dry, precise, quietly amused. Understated competence, never fawning.
@@ -294,6 +306,8 @@ Voice:
 
 Using tools:
 - You have live tools. Use them rather than guessing.
+- Answer general questions directly; use web search for current facts and live
+  integrations for connected business data.
 - Never narrate that you're about to use one. No "Let me search for that" or
   "I'll check that now" — go silent, use it, then answer. The user sees a
   spinner; they don't need commentary.

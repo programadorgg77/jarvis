@@ -1,0 +1,52 @@
+JARVIS - COPIA PARA OUTRO COMPUTADOR (WINDOWS)
+
+1. Extraia a pasta inteira do ZIP. Nao abra os arquivos dentro do ZIP.
+2. Instale Node.js 22 ou mais recente: https://nodejs.org/en/download
+3. Abra "Instalar Jarvis.cmd" e aguarde a instalacao dos componentes.
+4. Configure a IA conforme explicado abaixo.
+5. Abra "Iniciar Jarvis.cmd". O navegador abre automaticamente.
+6. Permita o microfone no Chrome ou Edge. Pergunte por voz ou digite.
+
+O Jarvis roda no seu computador. Nao usa Railway, VPS, Docker nem exige uma
+hospedagem paga. Nao ha tela de usuario e senha no aplicativo local.
+Mantenha a janela de comando aberta; Ctrl+C encerra o Jarvis.
+
+IA: O QUE ESTA CONFIGURADO NESTA COPIA
+
+Esta versao usa o backend Claude que ja fazia parte do projeto. As credenciais
+do computador de origem NAO acompanham o ZIP. O novo usuario precisa configurar
+seu proprio acesso antes de conversar. Rode "npm run setup" num terminal dentro
+da pasta para ver os requisitos. O acesso ao Claude depende da sua conta/plano
+ou de uma API; este pacote nao torna esse servico gratuito.
+
+Uma alternativa para nao ter cobranca de IA por pergunta e usar um modelo local
+(por exemplo Qwen via Ollama). Esse modo precisa ser integrado/configurado;
+nao esta ativado nesta copia. Nao basta instalar Ollama para trocar o backend.
+
+VOZ
+
+O navegador pode usar a voz instalada no Windows. Para preparar Antonio Neural,
+instale Python 3 (com Python Launcher) e abra "Preparar Voz.cmd". Esse recurso
+usa o servico online de voz da Microsoft; precisa de internet e pode recorrer
+a voz do navegador se estiver indisponivel. ElevenLabs e opcional e nao e
+necessario contratar para iniciar o aplicativo.
+
+DADOS E CONTAS
+
+Nenhuma senha, token UTMify, conta Claude, perfil pessoal ou historico do dono
+anterior acompanha esta copia. Noticias e cambio usam fontes publicas. Vendas
+reais so aparecem depois de configurar as integracoes do novo usuario.
+
+O script scripts/setup-utmify-mcp.ps1 permite cadastrar uma credencial UTMify
+no computador de destino, mas deve ser executado com PowerShell 7 (pwsh).
+Use a credencial de quem vai utilizar o Jarvis; nao reutilize dados de terceiros.
+
+SOBRE VERCEL E LOGIN DO SITE
+
+O login que protege um site publicado e separado do Jarvis local. Esta copia
+abre diretamente no computador e nao publica nem cria contas na Vercel.
+Publicar so a interface na internet nao leva junto o processo de IA local.
+
+Primeira instalacao precisa de internet. Conversa, noticias e integracoes
+dependem dos provedores configurados. O funcionamento no computador de destino
+precisa ser validado la; desempenho e microfone dependem da maquina/navegador.

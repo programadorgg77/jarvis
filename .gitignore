@@ -8,9 +8,14 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.venv-voice/
+__pycache__/
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -25,3 +30,11 @@ dist-ssr
 
 # Copied out of node_modules by scripts/start.mjs — 34MB of build output.
 public/mediapipe/
+
+# Local browser checks and screenshots.
+.playwright-cli/
+output/playwright/
+output/entrega/
+output/railway/
+output/render/
+.railway/

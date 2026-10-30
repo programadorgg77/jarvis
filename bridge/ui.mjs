@@ -346,6 +346,24 @@ export function uiServer(emit) {
     // occur to the model that the interface is something it can touch.
     alwaysLoad: true,
     tools: [
+      tool('ui_business_snapshot',
+        'Update the financial dashboard with real business metrics AFTER reading a connected source such as UTMify. Call whenever answering a question about revenue, ad spend, orders or ROAS. Never use demonstration numbers or guess missing values: pass null for missing metrics and an empty series if daily revenue was not returned. Use numeric values, the exact currency, the source/dashboard name and a human-readable period. This updates the existing dashboard, so do not create a separate display blade for the same metrics.',
+        {
+          source: z.string().min(1).max(120).describe('Source and dashboard, e.g. UTMify · Estados Unidos'),
+          period: z.string().min(1).max(100).describe('Exact date range queried, e.g. 01–21 out. 2026'),
+          currency: z.enum(['BRL', 'USD', 'EUR', 'GBP']),
+          revenue: z.number().finite().nonnegative().nullable(),
+          spend: z.number().finite().nonnegative().nullable(),
+          orders: z.number().int().nonnegative().nullable(),
+          roas: z.number().finite().nonnegative().nullable(),
+          series: z.array(z.object({ label: z.string().max(30), value: z.number().finite().nonnegative() })).max(366).describe('Daily revenue in chronological order only if provided by the source; otherwise []'),
+        },
+        async (args) => {
+          if ([args.revenue, args.spend, args.orders, args.roas].every((v) => v === null)) return refuse('No real metrics provided. Query the connected source first.')
+          emit('business', { ...args, queriedAt: new Date().toISOString() })
+          return ok('Financial dashboard updated from the queried source.')
+        },
+      ),
       tool('ui_theme', THEME_DESCRIPTION, themeSchema, async (args) => {
         const patch = {}
         put(patch, 'accent', toColour(args.accent))

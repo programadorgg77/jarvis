@@ -38,18 +38,16 @@ export function Ignition({ onStart }: { onStart: () => void }) {
   if (phase !== 'offline') return null
 
   return (
-    <button className="ignition" onClick={onStart}>
-      {/*
-        Spun by CSS rather than framer. As a motion element with
-        `repeat: Infinity` it was one of the things keeping the exit from ever
-        finishing — AnimatePresence waits for a leaving subtree's animations,
-        and an infinite one never ends.
-      */}
-      <span className="ignition-ring" />
-      <span className="ignition-label">
-        <span className="ignition-word">INITIALISE</span>
-        <span className="ignition-sub">click, or clap, to power up</span>
-      </span>
-    </button>
+    <div className="ignition" aria-label="Inicialização do Jarvis">
+      <button className="ignition-action" onClick={onStart}>
+        <span className="ignition-ring" />
+        <span className="ignition-scan" />
+        <span className="ignition-label">
+          <span className="ignition-word">INICIAR JARVIS</span>
+          <span className="ignition-sub">Clique para ativar o microfone</span>
+        </span>
+        <span className="ignition-key">SISTEMA EM ESPERA <i>·</i> TOQUE PARA CONECTAR</span>
+      </button>
+    </div>
   )
 }

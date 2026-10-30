@@ -1,0 +1,43 @@
+JARVIS - WINDOWS PORTATIL (64 BITS)
+
+COMO USAR
+1. Clique com o botao direito no ZIP e escolha Extrair tudo.
+   Use uma pasta curta, por exemplo C:\Jarvis. Nao execute de dentro do ZIP.
+2. No primeiro uso, abra Conectar Claude.cmd e entre com a SUA conta.
+   Se o Claude Code ja esta conectado nesse Windows, pode pular esta etapa.
+3. Abra Iniciar Jarvis.cmd. O painel abre no Microsoft Edge (ou navegador padrao).
+4. Permita o microfone quando o navegador pedir e ative a escuta no painel.
+   Use Edge ou Chrome. Tambem e possivel escrever as perguntas.
+5. Mantenha a janela do Jarvis aberta. Ctrl+C encerra o assistente.
+
+NAO PRECISA INSTALAR NODE, PYTHON OU DEPENDENCIAS.
+O motor, o painel compilado e a voz em portugues estao incluidos neste ZIP.
+Nao precisa de Vercel, VPS, hospedagem ou conta em servico de deploy.
+O endereco 127.0.0.1/localhost so funciona no proprio computador.
+Se a porta 8787 estiver ocupada, o atalho escolhe outra automaticamente.
+
+CONTA CLAUDE E INTERNET
+O programa roda no PC, mas conversa com Claude pela internet usando a conta
+conectada nesse Windows. A conta precisa dar acesso ao Claude Code, e os
+limites do plano continuam valendo. Ter apenas a conta gratuita do chat
+nao garante esse acesso. O ZIP nao inclui assinatura nem credito de API.
+Voz neural, reconhecimento de fala, noticias e cotacoes tambem usam internet.
+Se a voz neural ficar indisponivel, o navegador tenta a voz do sistema.
+
+SUAS INTEGRACOES
+Este pacote nao inclui senhas, chaves, conta UTMify, Jev nem historico do autor.
+O Jarvis usa as integracoes MCP configuradas na SUA conta local do Claude Code.
+Para conectar sua UTMify, abra Conectar UTMify.cmd e cole a URL MCP gerada
+na sua conta UTMify. Nao cole token de outra pessoa. Depois reinicie o Jarvis.
+Sem integracao de vendas, os indicadores aguardam dados reais.
+Agenda e outros conectores precisam ser conectados separadamente.
+
+SE NAO ABRIR
+- Confira se extraiu a pasta inteira e se esta em Windows 10/11 de 64 bits.
+- Abra Iniciar Jarvis.cmd e leia a mensagem da janela que fica aberta.
+- Se nao abrir o navegador, copie o endereco local mostrado na janela para o Edge.
+- Se pedir login, feche o Jarvis, use Conectar Claude.cmd e abra novamente.
+- Se nao ouvir voce, permita o microfone no navegador e no Windows.
+- Nao apague dist, bridge, runtime, scripts ou node_modules: fazem parte do app.
+
+Os componentes de terceiros mantem suas licencas nas respectivas pastas.

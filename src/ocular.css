@@ -1,0 +1,150 @@
+/* Two visual states from the supplied references: a quiet white glyph, then
+   an incandescent iris between two instrument rails. */
+:root { --bg: #010102; --interface: #f47230; --ocular-muted: #83858c; --ocular-white: #f3f1ff; }
+.ocular-activity { flex-shrink: 0; margin-bottom: 14px; padding: 0 0 12px; border-bottom: 1px solid #d5a18429; }
+.ocular-activity-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 34px; padding: 0; background: none; border: 0; color: #c5aa99; font: 8px 'JetBrains Mono', monospace; letter-spacing: .09em; text-align: left; }
+.ocular-activity-toggle > span:first-child { display: flex; gap: 8px; align-items: center; }
+.ocular-activity-toggle i { width: 5px; height: 5px; border-radius: 50%; background: #7f998b; }
+.ocular-activity.is-working .ocular-activity-toggle i { background: #f7a35b; box-shadow: 0 0 12px #f0804a90; animation: activitySignal 1.8s ease-in-out infinite; }
+.ocular-activity-current { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 43px; margin: 3px 0 12px; color: #f3ded0; font-size: 14px; line-height: 1.5; font-weight: 500; }
+.ocular-activity-steps { display: flex; flex-direction: column; max-height: min(29vh, 250px); overflow-y: auto; padding: 0 6px 0 0; margin: 0; list-style: none; scrollbar-width: thin; scrollbar-color: #b58a6744 transparent; }
+.ocular-activity-steps > li { position: relative; display: flex; gap: 9px; padding: 0 0 14px; min-height: 31px; color: #a7a2a0; }
+.ocular-activity-steps > li:not(:last-child)::before { content: ''; position: absolute; left: 7px; width: 1px; top: 19px; bottom: 2px; background: #ba9c7d25; }
+.ocular-step-mark { width: 15px; height: 18px; flex-shrink: 0; display: grid; place-items: center; color: #81c3a6; font-size: 12px; }
+.activity-running .ocular-step-mark { color: #f3a16c; animation: ignitionSpin 3s linear infinite; }
+.activity-error .ocular-step-mark { color: #e98c83; }.activity-cancelled .ocular-step-mark { color: #777; }
+.ocular-activity-steps details { flex: 1; min-width: 0; }
+.ocular-activity-steps summary { display: flex; gap: 8px; align-items: baseline; list-style: none; cursor: pointer; font-size: 10px; line-height: 1.7; }
+.ocular-activity-steps summary::-webkit-details-marker { display: none; }
+.ocular-activity-steps summary::after { content: '+'; order: 1; color: #7d7169; font-size: 9px; }
+.ocular-activity-steps details[open] summary::after { content: '−'; }
+.ocular-activity-steps summary > span { flex: 1; }.ocular-activity-steps time { margin-left: auto; color: #867b75; font: 8px 'JetBrains Mono', monospace; }
+.ocular-activity-steps .activity-running summary { color: #f0cfb7; }
+.ocular-activity-steps p { color: #a59a94; font: 9px/1.7 'JetBrains Mono', monospace; overflow-wrap: anywhere; margin: 4px 0 0; }
+.ocular-activity-steps .ocular-step-wait { color: #d5aa7e; font-family: 'Manrope', sans-serif; }
+.ocular-activity-note { color: #7d7774; font-size: 8px; line-height: 1.6; margin: 5px 0 0; }
+.ocular-activity-wave { display: flex; align-items: center; gap: 3px; height: 20px; flex-shrink: 0; }
+.ocular-activity-wave i { width: 2px; height: 6px; background: #ee9b67; animation: activityWave 1.3s ease-in-out infinite; }.ocular-activity-wave i:nth-child(2) { animation-delay: .15s; }.ocular-activity-wave i:nth-child(3) { animation-delay: .3s; }
+.ocular-connections { flex-shrink: 0; border-bottom: 1px solid #dde0f014; margin-bottom: 10px; }
+.ocular-connections > summary { display: flex; justify-content: space-between; min-height: 32px; align-items: center; cursor: pointer; color: #8d8b91; font: 8px 'JetBrains Mono', monospace; list-style: none; }.ocular-connections > summary::-webkit-details-marker { display: none; }.ocular-connections[open] > summary { color: #d0b9a8; }
+.ocular-footer > button { pointer-events: auto; background: transparent; border: 0; color: #b5a59a; padding: 0 5px; font: 8px 'JetBrains Mono', monospace; }
+@keyframes activityWave { 0%,100% { transform: scaleY(.6); } 50% { transform: scaleY(2); } }
+@keyframes activitySignal { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+@media (max-width: 760px) { .ocular-activity-current { font-size: 11px; min-height: 32px; }.ocular-activity-toggle { font-size: 6px; letter-spacing: .02em; }.ocular-activity-steps { max-height: 170px; }.ocular-activity-steps summary { font-size: 9px; }.ocular-activity-steps p { font-size: 8px; }.ocular-activity-note { font-size: 7px; }.ocular-footer > button { font-size: 7px; } }
+body::after { display: none; }
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .4; }
+button, a { transition: color .18s, border-color .18s, background-color .18s; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 1px solid #e5dff4; outline-offset: 5px; }
+.hud.ocular-shell { position: relative; inset: auto; height: 100%; color: #dbdce0; text-transform: none; letter-spacing: normal; pointer-events: auto; font: 12px 'Manrope', sans-serif; }
+.ocular-interface { --rail-width: clamp(210px, 18vw, 290px); --rail-right-width: clamp(235px, 20vw, 310px); position: relative; width: 100%; height: 100dvh; min-height: 480px; overflow: hidden; background: #010102; isolation: isolate; }
+.ocular-canvas { position: absolute; inset: 0; z-index: -1; pointer-events: none; transition: transform 1s ease; }
+.ocular-canvas > div { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
+.ocular-header { position: absolute; z-index: 4; top: 0; left: 0; right: 0; height: 74px; display: flex; align-items: center; justify-content: space-between; padding: 0 29px; gap: 20px; }
+.ocular-header-left { display: flex; align-items: center; gap: 8px; font: 7px 'JetBrains Mono', monospace; letter-spacing: .13em; color: #7c7d86; opacity: .65; transition: opacity .7s; }
+.ocular-presence-dot { width: 4px; height: 4px; background: #b6abc8; border-radius: 50%; box-shadow: 0 0 7px #c1a9eb77; }
+.ocular-wordmark { position: absolute; left: 50%; top: 26px; transform: translateX(-50%); color: #dedce7; font: 500 12px 'Space Grotesk', sans-serif; letter-spacing: .27em; text-align: center; opacity: .65; }
+.ocular-wordmark > span { display: block; color: #797882; font: 5px 'JetBrains Mono', monospace; letter-spacing: .18em; margin: 5px 0 0; }
+.ocular-header-right { display: flex; align-items: center; gap: 25px; margin-left: auto; opacity: .6; transition: opacity .3s; }
+.ocular-header-right:hover { opacity: 1; }
+.ocular-header-right > time { font: 10px 'JetBrains Mono', monospace; color: #c1becb; font-variant-numeric: tabular-nums; }
+.ocular-shell .personal-trigger { position: static; min-height: 28px; padding: 0; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; box-shadow: none; color: #c1becb; font: 8px 'JetBrains Mono', monospace; letter-spacing: .02em; }
+.ocular-shell .personal-trigger:hover { color: #f4f0ff; background: transparent; }
+.ocular-shell .personal-trigger-mark { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid #c4bdde30; border-radius: 50%; font-size: 9px; }
+.ocular-shell .profile-chevron { font-size: 12px; margin-left: 3px; color: #736b86; }
+.ocular-panel { position: absolute; z-index: 3; top: 86px; bottom: 90px; font-size: 11px; transition: opacity .8s ease, transform 1s cubic-bezier(.22,.8,.2,1), filter .8s; opacity: 0; filter: blur(8px); pointer-events: none; scrollbar-width: thin; scrollbar-color: #59535d44 transparent; }
+.ocular-panel-left { left: 29px; width: var(--rail-width); transform: translateX(-110%); padding-right: 17px; overflow-y: auto; border-right: 1px solid #cad6ed0a; mask-image: linear-gradient(#000 96%, transparent); }
+.ocular-panel-right { right: 29px; width: var(--rail-right-width); transform: translateX(110%); display: flex; flex-direction: column; border-left: 1px solid #cad6ed0c; padding-left: 17px; }
+.ocular-is-active .ocular-panel { transform: translateX(0); opacity: 1; filter: none; pointer-events: auto; transition-delay: .32s; }
+.ocular-is-active .ocular-header-left, .ocular-is-active .ocular-header-right { opacity: .9; }
+.ocular-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px; color: #8a8c95; font: 7px 'JetBrains Mono', monospace; letter-spacing: .12em; border-bottom: 1px solid #dde0f014; padding-bottom: 8px; }
+.ocular-panel-heading button { color: #858c99; border: 0; padding: 0; background: transparent; }
+.ocular-panel-heading button:hover { color: #fff; }
+.telemetry-live { display: flex; align-items: center; gap: 5px; color: #68b594; font-size: 6px; letter-spacing: .06em; }
+.telemetry-live i { width: 3px; height: 3px; background: #77d8a8; border-radius: 50%; }
+.ocular-audio-label { display: flex; justify-content: space-between; color: #8b9998; font: 6px 'JetBrains Mono', monospace; letter-spacing: .08em; margin-top: 13px; }
+.ocular-spectrum { height: 49px; display: flex; align-items: flex-end; justify-content: space-between; gap: 2px; border-bottom: 1px solid #9bfff324; padding: 0 0 6px; }
+.ocular-spectrum i { display: block; flex: 1; max-width: 4px; min-height: 2px; background: #56d9a9; box-shadow: 0 0 5px #55dda52b; transition: height .08s linear; }
+.ocular-spectrum.is-output i { background: #e17444; box-shadow: 0 0 5px #fa602233; }
+.ocular-source-line { display: flex; justify-content: space-between; gap: 8px; padding: 9px 0 20px; font: 6px 'JetBrains Mono', monospace; color: #626e74; letter-spacing: .02em; }
+.ocular-source-line b { font-weight: 400; color: #747b80; }
+.ocular-source-line .source-online { color: #6ccea8; }
+.ocular-section-label { display: flex; align-items: center; justify-content: space-between; color: #687c75; }
+.ocular-section-label h2 { font: 500 11px 'Manrope', sans-serif; color: #c0c5c7; margin: 0; }
+.ocular-finance { border-bottom: 1px solid #dde0f014; padding-bottom: 18px; }
+.ocular-revenue { display: block; margin-top: 8px; font: 400 clamp(24px, 2.3vw, 34px)/1.3 'Space Grotesk', sans-serif; color: #eceef0; letter-spacing: -.055em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ocular-period { display: block; font: 7px 'JetBrains Mono', monospace; color: #7d8c89; margin: 4px 0 0; }
+.ocular-revenue-chart { height: 54px; margin: 9px 0 10px; color: #4bc99c; }
+.ocular-revenue-chart svg { width: 100%; height: 100%; }
+.ocular-metrics { margin: 0 0 17px; }
+.ocular-metrics > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #dde0f00c; }
+.ocular-metrics dt { font-size: 10px; color: #87938f; }
+.ocular-metrics dd { margin: 0; font: 400 13px 'Space Grotesk', sans-serif; color: #cbdad2; font-variant-numeric: tabular-nums; }
+.ocular-query { width: 100%; padding: 9px 0; border: 0; background: transparent; display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #9bd7b8; text-align: left; font-size: 10px; }
+.ocular-query:hover { color: #d0fce4; }
+.ocular-data-source { display: block; color: #707e7c; font-size: 8px; line-height: 1.6; max-width: 100%; overflow-wrap: anywhere; }
+.ocular-agenda { padding: 18px 0; border-bottom: 1px solid #dde0f014; }
+.ocular-agenda p { font-size: 10px; line-height: 1.8; color: #7a848b; margin: 10px 0; }
+.ocular-agenda button, .ocular-radar button { width: 100%; padding: 5px 0; border: 0; background: transparent; color: #a3b4bf; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; font-size: 9px; }
+.ocular-agenda button:hover, .ocular-radar button:hover { color: #e6e9f0; }
+.ocular-radar { padding: 18px 0; }.ocular-radar .ocular-section-label { margin-bottom: 10px; }.ocular-radar button { padding: 8px 0; }
+.ocular-system-list { padding: 13px 0 16px; display: flex; flex-direction: column; gap: 5px; }
+.ocular-system-list button { --row: #669ec1; display: flex; align-items: center; min-height: 25px; gap: 7px; width: 100%; padding: 4px 8px; border: 0; border-left: 2px solid color-mix(in srgb, var(--row) 50%, transparent); background: color-mix(in srgb, var(--row) 8%, #07090c); color: #8b8f9a; text-align: left; }
+.ocular-system-list button[data-tone='mint'] { --row: #71c6a8; }.ocular-system-list button[data-tone='violet'] { --row: #a08bce; }.ocular-system-list button[data-tone='cyan'] { --row: #61b6c5; }.ocular-system-list button[data-tone='rose'] { --row: #bd747e; }
+.ocular-system-list button.is-available { background: color-mix(in srgb, var(--row) 23%, #080a0f); border-left-color: var(--row); color: #dbdfe5; }
+.ocular-system-list button:hover { background: color-mix(in srgb, var(--row) 30%, #080a0f); }
+.ocular-system-list button > i { width: 3px; height: 3px; border-radius: 50%; flex-shrink: 0; background: #69727e; }
+.ocular-system-list button.is-available > i { background: var(--row); box-shadow: 0 0 4px var(--row); }
+.ocular-system-list button > span { font-size: 9px; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ocular-system-list button > small { color: color-mix(in srgb, var(--row) 65%, #808997); margin-left: auto; white-space: nowrap; font: 5px 'JetBrains Mono', monospace; }
+.ocular-conversation { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: 5px; }
+.ocular-turn-count { color: #c7b7bd; }
+.ocular-conversation-scroll { overflow-y: auto; flex: 1; min-height: 0; padding-top: 16px; padding-right: 3px; scrollbar-width: thin; scrollbar-color: #69727e33 transparent; }
+.ocular-message { padding: 0 0 15px; margin: 0 0 16px; border-bottom: 1px solid #dde0f012; }
+.ocular-message > span { display: flex; align-items: center; gap: 8px; font: 7px 'JetBrains Mono', monospace; color: #e07b57; letter-spacing: .08em; }
+.ocular-message > span > i { flex: 1; height: 1px; background: #c5805510; }
+.ocular-message p { font-size: 11px; line-height: 1.9; color: #c9c8ce; margin: 7px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ocular-message.is-user > span { color: #84a8c4; }.ocular-message.is-user p { color: #8b9caa; font-size: 10px; }
+.ocular-conversation-empty { padding: 30px 0; text-align: center; }
+.ocular-empty-mark { color: #85798a; font: 300 29px 'Space Grotesk', sans-serif; }.ocular-conversation-empty p { color: #8b8793; font-size: 11px; line-height: 1.8; margin-top: 12px; }
+.ocular-partial { color: #c6bac8; font-size: 11px; line-height: 1.7; }.ocular-partial > i { display: inline-block; margin-left: 5px; width: 1px; height: 10px; background: #e3cfeb; animation: pulse 1s infinite; }
+.ocular-current-tool { display: flex; align-items: center; gap: 7px; font: 7px 'JetBrains Mono', monospace; color: #a78472; line-height: 1.7; overflow-wrap: anywhere; padding: 5px 0 15px; }
+.ocular-loader { display: inline-block; width: 9px; height: 9px; flex: 0 0 auto; border: 1px solid #cba88b33; border-top-color: #d7986f; border-radius: 50%; animation: ignitionSpin 1.5s linear infinite; }
+.ocular-eye-label { position: absolute; left: calc(var(--rail-width) + 55px); right: calc(var(--rail-right-width) + 55px); top: 77%; display: flex; align-items: center; justify-content: center; gap: 15px; pointer-events: none; opacity: 0; transition: opacity .7s; color: #a07d69; font: 6px 'JetBrains Mono', monospace; letter-spacing: .19em; }
+.ocular-eye-label > span:nth-child(2) { white-space: nowrap; }.ocular-eye-rule { width: 50px; height: 1px; background: linear-gradient(90deg, transparent, #d8824938); }.ocular-eye-rule:last-child { transform: rotate(180deg); }
+.ocular-is-active .ocular-eye-label { opacity: 1; transition-delay: 1s; }
+.ocular-command { position: absolute; left: 50%; bottom: 35px; width: min(440px, calc(100vw - var(--rail-width) - var(--rail-right-width) - 110px)); z-index: 5; transform: translateX(-50%); transition: opacity .4s; }
+.ocular-command-form { display: flex; align-items: center; gap: 10px; padding: 8px 3px; border-bottom: 1px solid #e5cbb522; margin-bottom: 7px; }
+.ocular-command-prompt { color: #d68755; font: 21px 'Space Grotesk', sans-serif; }
+.ocular-command-form input { min-width: 0; flex: 1; border: 0; background: transparent; outline: none; padding: 4px 0; color: #e2d3d5; font-size: 11px; }.ocular-command-form input::placeholder { color: #746a70; }.ocular-command-form:focus-within { border-bottom-color: #e8aa726b; }.ocular-command-form input:focus-visible { outline: none; }
+.ocular-command-form button { background: transparent; border: 0; padding: 4px; color: #d4a080; }.ocular-command-form button:hover { color: #f7d3b2; }
+.ocular-command-controls { display: flex; align-items: center; justify-content: center; gap: 11px; }
+.ocular-command-controls > span { font: 6px 'JetBrains Mono', monospace; letter-spacing: .14em; color: #968d9e; white-space: nowrap; }
+.ocular-mic { width: 27px; height: 27px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 1px solid #d2c1ec32; border-radius: 50%; color: #c8bedc; background: #a896be07; }
+.ocular-mic:hover { border-color: #e2d1fa8c; background: #c6afed15; color: #fff; }
+.ocular-is-active .ocular-mic { color: #dc9e7c; border-color: #c77a474a; background: #c7794b0a; }.ocular-is-active .ocular-mic:hover { background: #ce7c4c22; border-color: #e5aa7a99; }
+.ocular-mic.can-stop { border-radius: 5px; }.ocular-mic.can-stop > svg { width: 11px; height: 11px; }
+.ocular-type-toggle { display: flex; align-items: center; gap: 8px; border: 0; border-left: 1px solid #c4b5dd20; background: transparent; color: #89828e; padding: 2px 0 2px 12px; font-size: 8px; }.ocular-type-toggle:hover { color: #eee4ff; }
+.ocular-footer { position: absolute; z-index: 2; left: 29px; right: 29px; bottom: 24px; display: flex; justify-content: space-between; pointer-events: none; font: 6px 'JetBrains Mono', monospace; letter-spacing: .09em; color: #625d6a; opacity: .75; }
+.ocular-footer-divider { padding: 0 10px; opacity: .45; }
+.ocular-error { position: absolute; left: 50%; bottom: 130px; transform: translateX(-50%); display: flex; align-items: flex-start; gap: 15px; z-index: 6; padding: 10px 14px; max-width: min(450px, calc(100vw - 32px)); border: 1px solid #a05b3a55; border-radius: 3px; background: #24150fee; color: #d5ad98; font-size: 11px; line-height: 1.7; }
+.ocular-error > button { border: 0; padding: 0; background: transparent; color: #c58f73; font-size: 16px; }
+.ocular-shell .personal-scrim { z-index: 40; background: #0009; }
+.ocular-shell .personal-console { --console-accent: #c7bfd9; color: #ddd7e3; background: #101014; border-color: #bab0d22c; font-family: 'Manrope', sans-serif; }
+.ocular-shell .personal-console::before { display: none; }.ocular-shell .personal-head h1 { color: #e6e1ed; font-family: 'Space Grotesk', sans-serif; }.ocular-shell .personal-head h1 em { color: #b8adc7; }
+.ocular-shell .personal-eyebrow, .ocular-shell .personal-index { color: #91879f; }.ocular-shell .personal-field > span { color: #bfb7c9; }.ocular-shell .personal-field input, .ocular-shell .personal-field textarea { color: #e3dbea; background: #09090d; border-color: #b8a7d329; font-family: 'Manrope', sans-serif; font-size: 12px; }
+.ocular-shell .personal-save { background: #b9aacd; color: #17101f; border: 0; border-radius: 3px; }.ocular-shell .personal-save span { color: #17101f; }.ocular-shell .personal-save:hover { background: #d3c6e5; }
+.ocular-shell .blades-stack:not(.blades-stack-full) { inset: 50% 29px 85px auto; width: var(--blade-rail, clamp(235px, 20vw, 310px)); z-index: 7; }
+.ocular-shell .bl { background: #0a0b10fa; border: 1px solid #d6b8a92b; border-radius: 3px; box-shadow: 0 12px 35px #000a; }
+.ocular-shell .blades-stack:not(.blades-stack-full) .bl { width: var(--blade-rail, clamp(235px, 20vw, 310px)); height: min(46vh, 450px); }
+.ocular-shell .bl-head { padding: 10px; background: #a681680c; border-color: #dac2b51a; }.ocular-shell .bl-title { text-transform: none; font-size: 10px; letter-spacing: .015em; color: #c2b6af; }.ocular-shell .bl-body { text-transform: none; letter-spacing: normal; font-size: 12px; }.ocular-shell .bl-kind { display: none; }.ocular-shell .bl-hint { display: none; }
+.ocular-shell .blades-stack-full { inset: 0; background: #000b; backdrop-filter: blur(12px); z-index: 20; }.ocular-shell .bl-btn { color: #c1b3a9; border-color: #baad9d25; font-size: 11px; }
+.boot-toast { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); z-index: 30; width: min(300px, calc(100vw - 40px)); padding: 15px 18px; border: 1px solid #bcabdf22; border-radius: 2px; background: #0d0b14ed; pointer-events: none; color: #c8bdd8; }
+.boot-toast-title { display: flex; align-items: center; gap: 10px; font-size: 11px; }.boot-toast p { font-size: 9px; color: #9a8eac; line-height: 1.8; margin: 8px 0 13px; }.boot-progress { background: #bca4df1c; height: 1px; overflow: hidden; }.boot-progress > i { display: block; width: 100%; height: 100%; background: #b7a3d4; transform-origin: left; animation: ocularBoot 9.2s linear forwards; }.small-loader { width: 9px; height: 9px; border: 1px solid #c3afea33; border-top-color: #c3afea; border-radius: 50%; animation: ignitionSpin 1.5s linear infinite; }
+@keyframes ocularBoot { from { transform: scaleX(.01); } to { transform: scaleX(1); } }
+@media (min-width: 1800px) { .ocular-panel { top: 96px; bottom: 110px; }.ocular-panel-left { left: 36px; padding-right: 24px; }.ocular-panel-right { right: 36px; padding-left: 24px; }.ocular-message p { font-size: 12px; }.ocular-metrics dt { font-size: 11px; }.ocular-system-list button { min-height: 28px; }.ocular-system-list button > span { font-size: 10px; }.ocular-system-list button > small { font-size: 6px; }.ocular-query { font-size: 11px; }.ocular-data-source { font-size: 9px; }.ocular-agenda p { font-size: 11px; }.ocular-agenda button, .ocular-radar button { font-size: 10px; } }
+@media (max-height: 720px) and (min-width: 761px) { .ocular-panel { top: 67px; bottom: 85px; }.ocular-panel-left { padding-right: 12px; }.ocular-spectrum { height: 33px; }.ocular-source-line { padding-bottom: 12px; }.ocular-revenue-chart { height: 30px; }.ocular-metrics > div { padding: 6px 0; }.ocular-finance { padding-bottom: 12px; }.ocular-agenda, .ocular-radar { padding-block: 12px; }.ocular-system-list { gap: 4px; padding-block: 9px; }.ocular-system-list button { min-height: 22px; }.ocular-command { bottom: 22px; }.ocular-header { height: 58px; }.ocular-wordmark { top: 19px; }.ocular-footer { bottom: 14px; }.ocular-system-list button > small { font-size: 4px; } }
+@media (max-width: 1150px) and (min-width: 761px) { .ocular-interface { --rail-width: 190px; --rail-right-width: 220px; }.ocular-panel-left { left: 20px; padding-right: 12px; }.ocular-panel-right { right: 20px; padding-left: 12px; }.ocular-header { padding-inline: 20px; }.ocular-header-left { font-size: 6px; }.ocular-system-list button { padding-inline: 5px; gap: 5px; }.ocular-system-list button > small { font-size: 4px; }.ocular-message p { font-size: 10px; }.ocular-revenue { font-size: 25px; }.ocular-metrics dt { font-size: 9px; }.ocular-metrics dd { font-size: 12px; }.ocular-eye-label { left: 230px; right: 255px; gap: 7px; font-size: 5px; letter-spacing: .09em; }.ocular-eye-rule { width: 15px; }.ocular-header-right { gap: 14px; }.ocular-command { width: min(350px, calc(100vw - 450px)); }.ocular-command-controls > span { font-size: 5px; }.ocular-footer { left: 20px; right: 20px; }.ocular-shell .blades-stack:not(.blades-stack-full) { right: 20px; --blade-rail: 220px; } }
+@media (max-width: 760px) { .ocular-interface { min-height: 600px; --rail-width: 44%; --rail-right-width: 44%; }.ocular-header { height: 58px; padding-inline: 16px; gap: 10px; }.ocular-wordmark { top: 20px; font-size: 10px; letter-spacing: .2em; }.ocular-wordmark > span { font-size: 4px; }.ocular-header-left { font-size: 5px; letter-spacing: .04em; gap: 5px; }.ocular-header-right { gap: 10px; }.ocular-header-right > time { font-size: 8px; }.ocular-shell .personal-trigger > span:not(:first-child) { display: none; }.ocular-shell .personal-trigger-mark { width: 21px; height: 21px; font-size: 8px; }.ocular-panel { top: 54%; bottom: 94px; width: calc(50% - 23px); overflow-y: auto; }.ocular-panel-left { left: 15px; padding-right: 12px; }.ocular-panel-right { right: 15px; padding-left: 12px; display: block; }.ocular-is-active .ocular-canvas { transform: translateY(-16%); }.ocular-panel-heading { font-size: 6px; min-height: 21px; }.ocular-audio-label { margin-top: 10px; font-size: 5px; }.ocular-spectrum { height: 25px; gap: 1px; padding-bottom: 4px; }.ocular-spectrum i { max-height: 23px; }.ocular-source-line { padding: 7px 0 13px; font-size: 4px; flex-wrap: wrap; }.ocular-revenue { font-size: clamp(19px, 4.8vw, 29px); }.ocular-period { font-size: 6px; }.ocular-revenue-chart { height: 34px; margin: 9px 0; }.ocular-metrics { margin-bottom: 7px; }.ocular-metrics > div { padding: 7px 0; gap: 7px; }.ocular-metrics dt { font-size: 8px; }.ocular-metrics dd { font-size: 10px; }.ocular-section-label h2 { font-size: 10px; }.ocular-query { font-size: 9px; line-height: 1.6; }.ocular-data-source { font-size: 7px; }.ocular-finance { padding-bottom: 13px; }.ocular-agenda, .ocular-radar { padding-block: 13px; }.ocular-agenda p { font-size: 9px; }.ocular-agenda button, .ocular-radar button { font-size: 8px; }.ocular-system-list { gap: 4px; padding: 9px 0 12px; }.ocular-system-list button { min-height: 21px; padding: 4px 5px; gap: 5px; }.ocular-system-list button > span { font-size: 8px; }.ocular-system-list button > small { display: none; }.ocular-conversation-scroll { overflow: visible; padding-top: 12px; }.ocular-message { padding-bottom: 10px; margin-bottom: 12px; }.ocular-message p { font-size: 10px; line-height: 1.85; }.ocular-message.is-user p { font-size: 9px; }.ocular-message > span { font-size: 6px; }.ocular-conversation-empty { padding: 15px 0; }.ocular-conversation-empty p { font-size: 10px; }.ocular-empty-mark { font-size: 23px; }.ocular-eye-label { top: 46%; left: 20px; right: 20px; font-size: 6px; }.ocular-command { width: min(380px, calc(100vw - 42px)); bottom: 21px; }.ocular-command-form { margin-bottom: 4px; padding-block: 6px; background: #030406dd; }.ocular-command-form input { font-size: 11px; }.ocular-command-controls { gap: 10px; }.ocular-command-controls > span { font-size: 6px; letter-spacing: .09em; }.ocular-mic { width: 27px; height: 27px; }.ocular-footer { bottom: 9px; left: 15px; right: 15px; font-size: 4px; opacity: .6; }.ocular-footer-divider { padding-inline: 5px; }.ocular-is-idle .ocular-command { bottom: 45px; }.ocular-is-idle .ocular-footer { bottom: 20px; font-size: 5px; }.ocular-error { bottom: 110px; width: calc(100vw - 40px); font-size: 10px; }.ocular-shell .blades-stack:not(.blades-stack-full) { inset: 56% 15px 95px auto; width: calc(50vw - 23px); --blade-rail: calc(50vw - 23px); }.ocular-shell .blades-stack:not(.blades-stack-full) .bl { min-height: 150px; height: 28vh; }.ocular-shell .bl-title { font-size: 8px; }.ocular-shell .bl-head { padding: 8px; }.ocular-shell .bl-btn { font-size: 8px; padding: 3px; }.boot-toast { bottom: 100px; }.ocular-interface .personal-console { width: min(510px, 100%); } }
+@media (prefers-reduced-motion: reduce) { .ocular-interface *, .ocular-canvas { transition: none !important; animation: none !important; scroll-behavior: auto !important; }.boot-progress > i { transform: scaleX(1); } }

@@ -1,8 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Scene } from './scene/Scene'
 import { Hud } from './ui/Hud'
-import { Boot } from './ui/Boot'
-import { Ignition } from './ui/Ignition'
 import { Diagnostics } from './ui/Diagnostics'
 import { useStore } from './store'
 import { startVoice, type Voice, type VoiceMode } from './lib/voice'
@@ -12,9 +9,9 @@ import * as music from './lib/music'
 import * as hands from './lib/hands'
 import { listenForClap } from './lib/clap'
 import * as camera from './lib/camera'
-import * as kokoro from './lib/kokoro'
 import { TTS_ENGINE } from './config'
-import { forTool, attention } from './lib/fillers'
+import type { BusinessSnapshot } from './store'
+import { attention } from './lib/fillers'
 import {
   ask,
   warm,
@@ -27,11 +24,13 @@ import {
   watchConnection,
   connectedLabels,
   usingBridge,
+  type AskHandlers,
   type Msg,
 } from './lib/brain'
 import { startAnalyser, micLevel } from './lib/audio'
 import { probeCapabilities } from './lib/capabilities'
 import { env } from './config'
+import { withPersonalContext } from './lib/personalContext'
 
 /**
  * The conversation.
@@ -65,9 +64,9 @@ const newId = () =>
  *  that woke him as "travis" gets that word sent on to the model as a question. */
 const NAME = '(?:jarvis|jarvys|jervis|travis|jarviss|java\'s|jarv)'
 /** A bare vocative — "Jarvis", "hey jarvis" — with nothing asked. */
-const BARE_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo)?\\s*${NAME}[\\s,.!?]*$`, 'i')
+const BARE_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo|ei|oi)?\\s*${NAME}[\\s,.!?]*$`, 'i')
 /** A leading vocative on a real command: "Jarvis, what's the weather". */
-const LEADING_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo)?\\s*${NAME}\\b[\\s,.:!?-]*`, 'i')
+const LEADING_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo|ei|oi)?\\s*${NAME}\\b[\\s,.:!?-]*`, 'i')
 
 export default function App() {
   const store = useStore
@@ -83,6 +82,7 @@ export default function App() {
    */
   const turn = useRef(0)
   const booting = useRef(false)
+  const typedTurn = useRef(false)
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const voicePoll = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -99,12 +99,14 @@ export default function App() {
   }
 
   const goDormant = () => {
+    typedTurn.current = false
     clearIdle()
     silence()
     turn.current++
     const s = store.getState()
     s.setCaption('')
     s.setActiveTool(null)
+    s.finishActivities('cancelled')
     music.working(false)
     music.duck(false)
     sfx.duck(false)
@@ -125,10 +127,12 @@ export default function App() {
 
   const respond = async (said: string): Promise<void> => {
     const mine = ++turn.current
+    const inputWasTyped = typedTurn.current
     const stale = () => mine !== turn.current
 
     clearIdle()
     const s = store.getState()
+    s.setError(null)
     // Last turn's panels and blades go now, before the new answer starts
     // putting its own up. Anything the model marked sticky survives.
     s.clearPanels()
@@ -136,53 +140,79 @@ export default function App() {
     s.setCaption('')
     s.pushTurn({ id: newId(), role: 'user', text: said })
     s.setPhase('thinking')
+    s.beginActivities()
 
-    const spk = createSpeaker()
+    let speakingStarted = false
+    const spk = createSpeaker({ onStart: () => {
+      if (stale()) return
+      speakingStarted = true
+      const state = store.getState()
+      state.setPhase('speaking')
+      state.setVoice(currentVoiceName())
+      state.recordActivity({ id: 'voice', kind: 'voice', label: 'Falando com você', detail: currentVoiceName(), status: 'running' })
+    } })
     speaker.current = spk
     sfx.duck(true)
     music.duck(true)
 
     const turnId = newId()
+    const contextualPrompt = withPersonalContext(said)
     let started = false
-    let filled = false
+
+    const handlers: AskHandlers = {
+      onActivity: (activity) => {
+        if (stale()) return
+        const state = store.getState()
+        state.recordActivity({ id: 'understand', kind: 'analysis', label: 'Solicitação recebida', status: 'done' })
+        state.recordActivity(activity)
+        if (!speakingStarted) state.setPhase(activity.status === 'running' ? 'tooling' : 'thinking')
+      },
+      onText: (delta) => {
+        if (stale()) return
+        if (!started) {
+          started = true
+          if (!speakingStarted) store.getState().setPhase('thinking')
+          store.getState().recordActivity({ id: 'understand', kind: 'analysis', label: 'Solicitação recebida', status: 'done' })
+          store.getState().recordActivity({ id: 'answer', kind: 'response', label: 'Preparando a resposta', detail: 'Organizando as informações retornadas', status: 'running' })
+          // The answer arriving is what ends the tool phase — a timer would
+          // clear the readout while a slow tool was still running.
+          store.getState().setActiveTool(null)
+          music.working(false)
+          store.getState().pushTurn({ id: turnId, role: 'jarvis', text: '' })
+        }
+        store.getState().appendToLastTurn(delta)
+        spk.push(delta)
+      },
+      onTool: (name) => {
+        if (stale()) return
+        // Only claim the tooling phase while he has nothing to say yet.
+        // Setting it unconditionally pinned the machine in 'tooling' for the
+        // rest of any answer that called a tool after it started talking,
+        // which also broke the reactor's lip-sync for the remainder.
+        if (!speakingStarted) store.getState().setPhase('tooling')
+        store.getState().setActiveTool(name)
+        sfx.play('tool')
+        music.working(true)
+        if (!usingBridge) store.getState().recordActivity({ id: name, kind: /search|exa|serper/i.test(name) ? 'search' : 'data', label: 'Consultando fonte', detail: name, status: 'running' })
+        // The action timeline reports progress without interrupting the answer
+        // with a spoken filler or claiming that speech has already started.
+      },
+    }
 
     try {
-      const { text } = await ask(said, history.current, {
-        onText: (delta) => {
-          if (stale()) return
-          if (!started) {
-            started = true
-            store.getState().setPhase('speaking')
-            // The answer arriving is what ends the tool phase — a timer would
-            // clear the readout while a slow tool was still running.
-            store.getState().setActiveTool(null)
-            music.working(false)
-            store.getState().pushTurn({ id: turnId, role: 'jarvis', text: '' })
-          }
-          store.getState().appendToLastTurn(delta)
-          spk.push(delta)
-        },
-        onTool: (name) => {
-          if (stale()) return
-          // Only claim the tooling phase while he has nothing to say yet.
-          // Setting it unconditionally pinned the machine in 'tooling' for the
-          // rest of any answer that called a tool after it started talking,
-          // which also broke the reactor's lip-sync for the remainder.
-          if (!started) store.getState().setPhase('tooling')
-          store.getState().setActiveTool(name)
-          sfx.play('tool')
-          music.working(true)
-          // Say something the moment work starts — a tool can take ten seconds
-          // and silence that long reads as a crash. Once per turn only; a
-          // chain of five tools shouldn't produce five apologies.
-          if (!filled && !started) {
-            filled = true
-            spk.say(forTool(name))
-          }
-        },
-      })
+
+      let text = (await ask(contextualPrompt, history.current, handlers)).text
+
+      // Some SDK/bridge builds finish with a result but no text deltas. Never
+      // let an empty successful turn look like JARVIS ignored the question.
+      if (!text.trim()) {
+        text = 'Não consegui concluir a resposta. Pode repetir a pergunta?'
+        handlers.onText(text)
+      }
 
       if (stale()) return
+
+      store.getState().recordActivity({ id: 'answer', kind: 'response', label: 'Resposta preparada', status: 'done' })
 
       // The bridge keeps conversation state in its own session, so history is
       // only threaded through on the direct path.
@@ -196,16 +226,23 @@ export default function App() {
 
       await spk.end()
       if (stale()) return
+      store.getState().finishActivities('done')
       sfx.play('done')
     } catch (err) {
       if (stale()) return
       console.error(err)
       sfx.play('error')
-      store
-        .getState()
-        .setError(err instanceof Error ? err.message : 'Something went wrong.')
+      store.getState().setError('A resposta não foi concluída. Tente perguntar novamente.')
+      store.getState().finishActivities('error')
+      try {
+        handlers.onText('A resposta não terminou. Pode perguntar mais uma vez?')
+        await spk.end()
+      } catch {
+        // The on-screen error remains available if the speech engine also fails.
+      }
     } finally {
       if (!stale()) {
+        typedTurn.current = false
         speaker.current = null
         sfx.duck(false)
         music.duck(false)
@@ -213,7 +250,8 @@ export default function App() {
         music.working(false)
         // Stay open. Having to say his name again to add one more sentence is
         // the difference between a conversation and a vending machine.
-        listen(FOLLOW_UP_MS)
+        if (inputWasTyped) store.getState().setPhase('dormant')
+        else listen(FOLLOW_UP_MS)
       }
     }
   }
@@ -222,6 +260,7 @@ export default function App() {
 
   /** What the voice loop should do with what it hears, derived from phase. */
   const mode = (): VoiceMode => {
+    if (typedTurn.current) return 'deaf'
     switch (store.getState().phase) {
       case 'offline':
       case 'boot':
@@ -237,6 +276,7 @@ export default function App() {
   }
 
   const onWake = (trailing: string) => {
+    if (typedTurn.current) return
     const phase = store.getState().phase
     if (phase === 'offline' || phase === 'boot') return
 
@@ -268,6 +308,7 @@ export default function App() {
    * immediately, whatever he was doing.
    */
   const onSpeechStart = () => {
+    if (typedTurn.current) return
     clearIdle()
     const phase = store.getState().phase
     if (phase === 'offline' || phase === 'boot' || phase === 'dormant') return
@@ -281,6 +322,7 @@ export default function App() {
       // replacement; bumping it here covers the case where nothing replaces it.
       turn.current++
       interrupt()
+      store.getState().finishActivities('cancelled')
       store.getState().setActiveTool(null)
       music.working(false)
       sfx.duck(false)
@@ -290,6 +332,7 @@ export default function App() {
   }
 
   const onUtterance = (text: string) => {
+    if (typedTurn.current) return
     const phase = store.getState().phase
     if (phase === 'offline' || phase === 'boot' || phase === 'dormant') return
 
@@ -309,6 +352,7 @@ export default function App() {
   }
 
   const onPartial = (text: string) => {
+    if (typedTurn.current || ['offline', 'boot', 'dormant'].includes(store.getState().phase)) return
     store.getState().setCaption(text)
   }
 
@@ -340,8 +384,8 @@ export default function App() {
         .getState()
         .setError(
           err instanceof Error
-            ? `Power-up failed: ${err.message}`
-            : 'Power-up failed. Click to try again.',
+            ? `Falha ao iniciar: ${err.message}`
+            : 'Falha ao iniciar. Clique para tentar novamente.',
         )
     }
   }
@@ -352,12 +396,7 @@ export default function App() {
     // Must happen inside the click handler — browsers won't start an
     // AudioContext or speech synthesis without a user gesture.
     await sfx.unlockAudio()
-    sfx.play('boot')
-    // The score. Must be started from inside this click handler for the same
-    // reason as the rest of the audio.
     music.enable()
-    music.playBoot()
-    music.startAmbient()
 
     s.setPhase('boot')
 
@@ -428,6 +467,12 @@ export default function App() {
       const s = store.getState()
       const a = (args ?? {}) as Record<string, never>
       switch (op) {
+        case 'world':
+          window.dispatchEvent(new CustomEvent('jarvis:refresh-world', { detail: args }))
+          break
+        case 'business':
+          s.setBusinessSnapshot(args as BusinessSnapshot)
+          break
         case 'patch':
           s.applyUi(args)
           break
@@ -454,44 +499,41 @@ export default function App() {
     // on screen still shows it. Better to say so than to let him quietly forget.
     watchConnection((state) => {
       if (state === 'lost') {
-        store.getState().setError('Bridge connection lost — reconnecting.')
+        store.getState().setError('Conexão com a ponte perdida. Reconectando.')
       } else if (state === 'reconnected') {
         store
           .getState()
-          .setError('Bridge reconnected. The previous conversation was not kept.')
+          .setError('Ponte reconectada. A conversa anterior não foi mantida.')
       }
     })
-    const warming = warm().catch((err: Error) => s.setError(err.message))
+    const warming = warm().catch((err: Error) => s.setError(`Falha ao conectar com o assistente: ${err.message}`))
 
     if (!usingBridge && !env.anthropicKey) {
       s.setError(
-        'No Anthropic API key — copy .env.example to .env.local and set VITE_ANTHROPIC_API_KEY.',
+        'Chave da Anthropic não configurada. Copie .env.example para .env.local e informe VITE_ANTHROPIC_API_KEY.',
       )
     }
 
-    // Pull the neural voice down during the boot sequence so the first
+    // Load the neural voice in the background so the first
     // "Hey Jarvis" isn't waiting on an 86MB download. Deliberately not awaited
     // — if it's slow, JARVIS comes up on the system voice and swaps over the
     // moment the model is ready.
     if (TTS_ENGINE === 'kokoro') {
-      void kokoro.load()
-      voicePoll.current = setInterval(() => {
-        const p = kokoro.loadProgress()
-        if (kokoro.isReady() || kokoro.isUnavailable()) {
-          store.getState().setBootNote('')
-          if (voicePoll.current) clearInterval(voicePoll.current)
-          voicePoll.current = null
-        } else if (p > 0 && p < 1) {
-          store.getState().setBootNote(`voice ${Math.round(p * 100)}%`)
-        }
-      }, 200)
+      void import('./lib/kokoro').then(async (kokoro) => {
+        await kokoro.load()
+        voicePoll.current = setInterval(() => {
+          const p = kokoro.loadProgress()
+          if (kokoro.isReady() || kokoro.isUnavailable()) {
+            store.getState().setBootNote('')
+            if (voicePoll.current) clearInterval(voicePoll.current)
+            voicePoll.current = null
+          } else if (p > 0 && p < 1) {
+            store.getState().setBootNote(`voz ${Math.round(p * 100)}%`)
+          }
+        }, 200)
+      }).catch(() => store.getState().setBootNote(''))
     }
 
-    // Long enough for the four-beat start-up sequence in Boot.tsx to play —
-    // status bar, rings, suit schematic, reactor power-up — before the live
-    // interface takes over. Kept a touch under the boot cue so the music is
-    // still rising as the reactor lands.
-    await new Promise((r) => setTimeout(r, 9200)) // boot sequence
     await warming
     store.getState().setConnected(connectedLabels())
     store.getState().setVoice(currentVoiceName())
@@ -522,6 +564,9 @@ export default function App() {
       onPartial,
       onUtterance,
       onError: onVoiceError,
+      onRecovered: () => {
+        if (store.getState().error?.startsWith('Falha no serviço de reconhecimento de voz')) store.getState().setError(null)
+      },
     })
 
     store.getState().setPhase('dormant')
@@ -578,7 +623,8 @@ export default function App() {
 
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) return
+      if (e.code === 'Space' && (e.target as HTMLElement)?.closest('button,a,summary')) return
 
       // V auditions the next British voice installed on this machine. Which
       // ones exist varies per Mac, so hearing them beats trusting a ranking.
@@ -596,7 +642,7 @@ export default function App() {
         silence()
         const demo = createSpeaker()
         speaker.current = demo
-        demo.say(`Voice set to ${name.replace(/\(.*?\)/g, '').trim()}. At your service, sir.`)
+        demo.say(`Voz alterada para ${name.replace(/\(.*?\)/g, '').trim()}. À disposição.`)
         void demo.end()
         return
       }
@@ -621,8 +667,8 @@ export default function App() {
                 .getState()
                 .setError(
                   err?.name === 'NotAllowedError'
-                    ? 'Camera access denied — gesture control is unavailable.'
-                    : `Gesture control failed to start: ${err?.message ?? err}`,
+                    ? 'Acesso à câmera negado. O controle por gestos está indisponível.'
+                    : `Falha ao iniciar os gestos: ${err?.message ?? err}`,
                 )
             })
         }
@@ -638,7 +684,8 @@ export default function App() {
         silence()
         const t = createSpeaker()
         speaker.current = t
-        t.say('Audio test. If you can hear this, speech output is working, sir.')
+        // Exercise the same streamed sentence queue as a real answer.
+        t.push('Teste de áudio. Se você me ouviu, a fala está funcionando.')
         void t.end().then(() => {
           const d = (window as unknown as Record<string, Record<string, unknown>>).__tts
           console.info('[jarvis] audio test →', d)
@@ -663,12 +710,13 @@ export default function App() {
       // a missed wake word doesn't cost a take.
       if (e.code !== 'Space' || e.repeat) return
       e.preventDefault()
+      typedTurn.current = false
 
       const phase = store.getState().phase
       if (phase === 'offline') {
         void powerOn()
       } else if (phase === 'boot') {
-        /* ignore — the boot sequence owns the phase until it finishes */
+        /* Audio and voice input are still being prepared. */
       } else if (
         phase === 'thinking' ||
         phase === 'tooling' ||
@@ -697,11 +745,23 @@ export default function App() {
 
   return (
     <>
-      <Scene />
-      <Hud />
-      <Boot />
+      <Hud
+        onStart={() => void powerOn()}
+        onAsk={(text) => {
+          void (async () => {
+            if (store.getState().phase === 'boot') return
+            if (store.getState().phase === 'offline') await powerOn()
+            if (['offline', 'boot'].includes(store.getState().phase)) return
+            onSpeechStart()
+            silence()
+            typedTurn.current = true
+            await respond(text)
+          })()
+        }}
+        onTalk={() => { typedTurn.current = false; onSpeechStart(); listen(AWAIT_SPEECH_MS) }}
+        onStop={() => { interrupt(); goDormant() }}
+      />
       <Diagnostics />
-      <Ignition onStart={() => void powerOn()} />
     </>
   )
 }

@@ -1,12 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&family=JetBrains+Mono:wght@300;400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   /* The interface cyan. `--accent` is re-declared per phase and per panel;
      this one stays put and is what anything neutral pins itself to. */
-  --interface: #00e5ff;
+  --interface: #b0ddc1;
   --accent: var(--interface);
-  --bg: #01060c;
-  font-family: 'Chakra Petch', system-ui, sans-serif;
+  --bg: #0b0e11;
+  font-family: 'Manrope', system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -1886,6 +1886,334 @@ kbd {
   .ignition-ring { animation: none }
 }
 
+/* ---------------------------------------------------------- personal console */
+
+.personal-trigger {
+  position: fixed;
+  z-index: 8;
+  top: 116px;
+  right: 92px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  border-radius: 2px;
+  background: rgba(2, 10, 15, 0.74);
+  color: color-mix(in srgb, var(--accent) 84%, white);
+  font: 9px 'JetBrains Mono', monospace;
+  letter-spacing: 0.13em;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+.personal-trigger:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, rgba(2, 10, 15, 0.92));
+  transform: translateY(-1px);
+}
+.personal-trigger:active { transform: translateY(1px) scale(0.98); }
+.personal-trigger:focus-visible,
+.personal-close:focus-visible,
+.personal-console button:focus-visible,
+.personal-console input:focus-visible,
+.personal-console textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.personal-trigger-mark { font-size: 14px; opacity: 0.8; }
+.personal-trigger-count {
+  min-width: 22px;
+  padding: 4px 5px;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  color: #e8fbff;
+  text-align: right;
+}
+
+.personal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0, 5, 9, 0.58);
+  backdrop-filter: blur(7px);
+  pointer-events: auto;
+}
+.personal-console {
+  --console-accent: #62e5f5;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(510px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  padding: clamp(25px, 5vw, 54px) clamp(22px, 4vw, 42px) 28px;
+  border-left: 1px solid rgba(98, 229, 245, 0.32);
+  background:
+    radial-gradient(ellipse at 91% 3%, rgba(26, 112, 132, 0.21), transparent 38%),
+    linear-gradient(153deg, rgba(8, 23, 32, 0.98), rgba(3, 9, 15, 0.99) 44%, rgba(3, 11, 18, 0.99));
+  color: #e7f7fa;
+  box-shadow: -28px 0 90px rgba(0, 0, 0, 0.56), inset 1px 0 rgba(255, 255, 255, 0.035);
+  scrollbar-color: rgba(98, 229, 245, 0.28) transparent;
+  scrollbar-width: thin;
+  pointer-events: auto;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.personal-console::before {
+  content: '';
+  position: absolute;
+  inset: 13px;
+  border: 1px solid rgba(98, 229, 245, 0.055);
+  pointer-events: none;
+}
+.personal-head {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 26px;
+  border-bottom: 1px solid rgba(98, 229, 245, 0.16);
+}
+.personal-eyebrow,
+.personal-index {
+  color: rgba(146, 199, 207, 0.63);
+  font: 8px 'JetBrains Mono', monospace;
+  letter-spacing: 0.18em;
+}
+.personal-eyebrow { display: flex; align-items: center; gap: 9px; }
+.personal-eyebrow > span {
+  width: 6px;
+  height: 6px;
+  background: var(--console-accent);
+  box-shadow: 0 0 12px rgba(98, 229, 245, 0.68);
+}
+.personal-head h1 {
+  margin: 19px 0 0;
+  color: #eafcff;
+  font-size: clamp(32px, 5vw, 43px);
+  font-weight: 400;
+  line-height: 0.99;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+.personal-head h1 em {
+  color: var(--console-accent);
+  font-weight: 300;
+  font-style: normal;
+}
+.personal-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(98, 229, 245, 0.22);
+  background: rgba(98, 229, 245, 0.045);
+  color: #bbd9de;
+  font: 23px/1 'Chakra Petch', sans-serif;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+.personal-close:hover { color: #fff; background: rgba(98, 229, 245, 0.12); }
+.personal-intro {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 16px;
+  align-items: baseline;
+  padding: 20px 0 17px;
+}
+.personal-intro p {
+  max-width: 31ch;
+  margin: 0;
+  color: rgba(211, 232, 235, 0.72);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.personal-form { display: flex; flex-direction: column; gap: 15px; }
+.personal-field { position: relative; display: flex; flex-direction: column; gap: 7px; }
+.personal-field > span {
+  color: rgba(191, 219, 224, 0.79);
+  font-size: 11px;
+  letter-spacing: 0.035em;
+}
+.personal-field input,
+.personal-field textarea {
+  width: 100%;
+  border: 1px solid rgba(120, 177, 186, 0.2);
+  border-radius: 1px;
+  padding: 11px 12px;
+  background: rgba(2, 9, 14, 0.57);
+  color: #edfaff;
+  font: 12px/1.55 'Chakra Petch', system-ui, sans-serif;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+.personal-field input { min-height: 40px; }
+.personal-field textarea { min-height: 115px; resize: vertical; }
+.personal-field input::placeholder,
+.personal-field textarea::placeholder { color: rgba(146, 175, 180, 0.42); }
+.personal-field input:focus,
+.personal-field textarea:focus {
+  border-color: rgba(98, 229, 245, 0.72);
+  background: rgba(4, 16, 22, 0.92);
+}
+.personal-field small {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  color: rgba(146, 175, 180, 0.42);
+  font: 8px 'JetBrains Mono', monospace;
+}
+.personal-field textarea { padding-bottom: 24px; }
+.personal-consent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid rgba(98, 229, 245, 0.12);
+  border-bottom: 1px solid rgba(98, 229, 245, 0.12);
+  cursor: pointer;
+}
+.personal-consent > input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.personal-switch {
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 19px;
+  border: 1px solid rgba(144, 176, 181, 0.36);
+  background: rgba(2, 9, 14, 0.85);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.personal-switch::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 9px;
+  height: 9px;
+  background: rgba(171, 199, 203, 0.65);
+  transition: transform 160ms ease, background 160ms ease;
+}
+.personal-consent > input:checked + .personal-switch {
+  border-color: rgba(98, 229, 245, 0.64);
+  background: rgba(37, 138, 153, 0.24);
+}
+.personal-consent > input:checked + .personal-switch::after {
+  transform: translateX(15px);
+  background: var(--console-accent);
+}
+.personal-consent > input:focus-visible + .personal-switch { outline: 2px solid var(--console-accent); outline-offset: 3px; }
+.personal-consent > span:last-child { display: flex; flex-direction: column; gap: 4px; }
+.personal-consent b { color: #d9edf0; font-size: 11px; font-weight: 500; }
+.personal-consent small { color: rgba(159, 188, 193, 0.58); font-size: 10px; }
+.personal-actions { display: flex; align-items: center; gap: 18px; }
+.personal-save {
+  min-height: 39px;
+  padding: 0 14px;
+  border: 1px solid rgba(98, 229, 245, 0.64);
+  background: rgba(25, 126, 142, 0.19);
+  color: #dffaff;
+  font: 9px 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
+}
+.personal-save:hover { background: rgba(25, 126, 142, 0.34); }
+.personal-save:active { transform: translateY(1px) scale(0.985); }
+.personal-save span { padding-left: 14px; color: var(--console-accent); }
+.personal-save-error { margin: -7px 0 0; color: #ff9d91; font-size: 10px; }
+.personal-clear {
+  border: 0;
+  padding: 8px 0;
+  background: none;
+  color: rgba(174, 196, 199, 0.58);
+  font: 10px 'Chakra Petch', sans-serif;
+  cursor: pointer;
+}
+.personal-clear:hover { color: #f3b4ae; }
+.personal-connectors {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(98, 229, 245, 0.19);
+}
+.personal-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.personal-section-head h2 {
+  margin: 8px 0 0;
+  color: #dff5f7;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.personal-live {
+  padding-bottom: 2px;
+  color: rgba(174, 196, 199, 0.48);
+  font: 8px 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+}
+.personal-live.is-live { color: #75e2c0; }
+.personal-connector-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.personal-connector-list li {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 35px;
+  border-top: 1px solid rgba(98, 229, 245, 0.075);
+  color: rgba(213, 233, 236, 0.84);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.personal-connector-dot { width: 5px; height: 5px; background: #75e2c0; box-shadow: 0 0 9px rgba(117, 226, 192, 0.6); }
+.personal-connector-list small { color: rgba(117, 226, 192, 0.63); font: 7px 'JetBrains Mono', monospace; letter-spacing: 0.1em; }
+.personal-connector-list .connector-pending { color: rgba(184, 204, 208, 0.63); }
+.personal-connector-list .connector-pending .personal-connector-dot { background: rgba(153, 178, 183, 0.34); box-shadow: none; }
+.personal-connector-list .connector-pending small { color: rgba(153, 178, 183, 0.48); }
+.personal-extra-links { margin-top: 17px; }
+.personal-extra-links p { margin: 7px 0 0; color: rgba(213, 233, 236, 0.74); font-size: 10px; line-height: 1.55; text-transform: capitalize; }
+.personal-empty-connectors {
+  margin: 15px 0 0;
+  padding: 12px 14px;
+  border-left: 2px solid rgba(98, 229, 245, 0.42);
+  background: rgba(98, 229, 245, 0.045);
+  color: rgba(197, 222, 225, 0.67);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.personal-doc-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 13px; }
+.personal-doc-links a {
+  color: rgba(145, 211, 219, 0.7);
+  font: 8px 'JetBrains Mono', monospace;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+.personal-doc-links a:hover { color: #d9fbff; }
+.personal-doc-links a span { color: var(--console-accent); }
+.personal-footnote {
+  margin-top: 17px;
+  color: rgba(140, 171, 177, 0.48);
+  font: 8px/1.6 'JetBrains Mono', monospace;
+}
+
+@media (max-width: 900px) {
+  .personal-trigger { top: 116px; right: 28px; }
+}
+@media (max-width: 600px) {
+  .personal-trigger { top: 116px; right: 18px; min-height: 34px; gap: 7px; padding: 0 8px; }
+  .personal-trigger-mark { display: none; }
+  .personal-console { padding: 30px 22px 24px; }
+  .personal-intro { grid-template-columns: 1fr; gap: 8px; }
+  .personal-intro p { max-width: 34ch; }
+  .personal-console::before { inset: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .personal-trigger,
+  .personal-close,
+  .personal-field input,
+  .personal-field textarea,
+  .personal-switch,
+  .personal-switch::after,
+  .personal-save { transition-duration: 0.01ms; }
+}
+
 /* The live camera inside a blade. Mirrored, because a person expects their own
    image to behave like a reflection — the frames sent to the model are not. */
 .bl-camera {
@@ -1895,4 +2223,234 @@ kbd {
   object-fit: cover;
   transform: scaleX(-1);
   background: #000;
+}
+
+/* ---------------------------------------------------------------------------
+   Mission control — a Portuguese, always-visible command dashboard.
+   Every card is explicitly marked as illustrative until a provider is linked.
+   --------------------------------------------------------------------------- */
+
+.mission-control {
+  position: fixed;
+  inset: 122px 34px 83px;
+  z-index: 3;
+  max-width: 1580px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  color: #c8eaf0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mission-topline {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid rgba(103, 220, 239, 0.17);
+  font: 8px 'JetBrains Mono', monospace;
+  letter-spacing: 0.19em;
+  color: rgba(177, 220, 228, 0.54);
+}
+
+.mission-topline-title { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+.mission-topline-title i { color: rgba(103, 220, 239, 0.46); font-style: normal; }
+.mission-crosshair {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--accent);
+  transform: rotate(45deg);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.mission-crosshair::after { content: ''; position: absolute; inset: 3px; background: var(--accent); }
+.mission-demo-badge { display: flex; align-items: center; gap: 8px; color: rgba(244, 183, 105, 0.88); white-space: nowrap; }
+.mission-demo-badge em { display: none; color: rgba(145, 206, 217, 0.64); font-style: normal; }
+.mission-demo-badge > span { width: 5px; height: 5px; border-radius: 50%; background: #f6b766; box-shadow: 0 0 9px rgba(246, 183, 102, 0.7); }
+.mission-clock { display: flex; align-items: center; justify-content: flex-end; gap: 11px; white-space: nowrap; }
+.mission-clock strong { color: #e3faff; font-size: 11px; font-weight: 400; letter-spacing: 0.12em; }
+
+.mission-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(230px, 0.9fr) minmax(250px, 1.12fr) minmax(230px, 0.9fr);
+  gap: clamp(12px, 2.2vw, 34px);
+  align-items: center;
+  padding: 14px 0;
+}
+
+.mission-stack { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
+.mission-stack-left { align-items: flex-start; }
+.mission-stack-right { align-items: flex-end; }
+
+.mission-card {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding: 15px 16px 13px;
+  border: 1px solid rgba(101, 217, 235, 0.16);
+  background:
+    linear-gradient(135deg, rgba(7, 26, 37, 0.94), rgba(2, 11, 20, 0.93) 72%),
+    rgba(2, 10, 15, 0.92);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24), inset 0 0 34px rgba(30, 179, 207, 0.035);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+.mission-card::before,
+.mission-card::after {
+  content: '';
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+.mission-card::before { top: 0; left: 0; border-top: 1px solid var(--accent); border-left: 1px solid var(--accent); opacity: 0.82; }
+.mission-card::after { right: 0; bottom: 0; border-right: 1px solid var(--accent); border-bottom: 1px solid var(--accent); opacity: 0.6; }
+
+.mission-module-title { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 12px; }
+.mission-code { flex: 0 0 auto; color: rgba(109, 222, 240, 0.5); font: 7px 'JetBrains Mono', monospace; letter-spacing: 0.12em; }
+.mission-module-title h2 { min-width: 0; margin: 0; color: #e4faff; font-size: 13px; font-weight: 400; letter-spacing: 0.09em; text-transform: uppercase; }
+.mission-module-mark { margin-left: auto; color: rgba(99, 224, 242, 0.5); font-size: 12px; }
+
+.mission-agenda-list { display: flex; flex-direction: column; }
+.mission-agenda-item { display: grid; grid-template-columns: 40px 12px minmax(0, 1fr); gap: 9px; min-height: 51px; align-items: start; padding-top: 10px; border-top: 1px solid rgba(104, 210, 227, 0.09); }
+.mission-agenda-item time { padding-top: 1px; color: #80d8e4; font: 9px 'JetBrains Mono', monospace; }
+.mission-agenda-node { position: relative; width: 7px; height: 7px; margin-top: 3px; border: 1px solid rgba(110, 210, 225, 0.43); border-radius: 50%; }
+.mission-agenda-node[data-current='true'] { border-color: #60f0dc; background: #60f0dc; box-shadow: 0 0 9px rgba(96, 240, 220, 0.7); }
+.mission-agenda-node:not(:last-child)::after { content: ''; position: absolute; top: 7px; left: 2px; width: 1px; height: 40px; background: rgba(98, 207, 226, 0.21); }
+.mission-agenda-item strong { display: block; color: rgba(220, 241, 244, 0.88); font-size: 10px; font-weight: 400; line-height: 1.35; }
+.mission-agenda-item small { display: block; margin-top: 5px; color: rgba(151, 186, 192, 0.45); font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.1em; }
+.mission-card-note { display: flex; align-items: center; gap: 7px; margin-top: 9px; color: rgba(233, 177, 106, 0.65); font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.12em; }
+.mission-status-dot { width: 4px; height: 4px; border-radius: 50%; background: #e8ad67; box-shadow: 0 0 7px rgba(232, 173, 103, 0.5); }
+.mission-status-dot.is-muted { background: #738b91; box-shadow: none; }
+
+.mission-priority-list { display: flex; flex-direction: column; }
+.mission-priority-list > div { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 8px; min-height: 31px; border-top: 1px solid rgba(104, 210, 227, 0.09); color: rgba(217, 239, 242, 0.75); font-size: 9px; }
+.mission-priority-index { color: rgba(104, 215, 235, 0.62); font: 8px 'JetBrains Mono', monospace; }
+.mission-priority-list i { color: rgba(233, 177, 106, 0.55); font: 6px 'JetBrains Mono', monospace; font-style: normal; letter-spacing: 0.1em; }
+
+.mission-sales-hero { padding: 11px 12px 9px; border-left: 1px solid rgba(100, 232, 203, 0.65); background: linear-gradient(90deg, rgba(77, 220, 195, 0.075), transparent); }
+.mission-sales-hero > span,
+.mission-sales-hero > small { display: block; color: rgba(164, 202, 205, 0.53); font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.14em; }
+.mission-sales-hero > strong { display: block; margin: 7px 0 4px; color: #d8fff5; font: 300 clamp(19px, 2vw, 28px) 'Chakra Petch', sans-serif; letter-spacing: 0.02em; text-shadow: 0 0 18px rgba(86, 234, 209, 0.2); }
+.mission-sales-hero > strong span { color: rgba(216, 255, 245, 0.55); font-size: 0.63em; }
+.mission-sales-chart { margin-top: 10px; color: #56e6cf; }
+.mission-sales-chart svg { display: block; width: 100%; height: 45px; overflow: visible; }
+.mission-sales-chart > span { display: block; margin-top: 3px; color: rgba(143, 182, 189, 0.42); font: 5px 'JetBrains Mono', monospace; letter-spacing: 0.12em; text-align: justify; }
+.mission-sales-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(104, 210, 227, 0.12); }
+.mission-sales-stats > div + div { padding-left: 11px; border-left: 1px solid rgba(104, 210, 227, 0.1); }
+.mission-sales-stats strong { display: block; color: rgba(223, 246, 247, 0.9); font: 11px 'JetBrains Mono', monospace; }
+.mission-sales-stats span { display: block; margin-top: 4px; color: rgba(169, 209, 216, 0.64); font: 5px 'JetBrains Mono', monospace; letter-spacing: 0.1em; }
+
+.mission-campaign-source { display: flex; align-items: center; gap: 7px; padding: 8px 9px; border: 1px solid rgba(103, 214, 233, 0.1); color: rgba(211, 237, 240, 0.78); font: 7px 'JetBrains Mono', monospace; letter-spacing: 0.12em; }
+.mission-campaign-source b { color: rgba(106, 223, 237, 0.5); font-weight: 300; }
+.mission-campaign-source i { margin-left: auto; color: rgba(239, 180, 103, 0.78); font-size: 6px; font-style: normal; }
+.mission-campaign-stats { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 12px; padding: 11px 2px 4px; }
+.mission-campaign-stats > div { display: flex; flex-direction: column; gap: 5px; }
+.mission-campaign-stats > div + div { padding-left: 10px; border-left: 1px solid rgba(104, 210, 227, 0.1); }
+.mission-campaign-stats span { color: rgba(157, 198, 205, 0.58); font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.1em; }
+.mission-campaign-stats strong { color: #cceef2; font: 11px 'JetBrains Mono', monospace; }
+
+.mission-news-list { display: flex; flex-direction: column; }
+.mission-news-item { padding: 9px 0; border-top: 1px solid rgba(104, 210, 227, 0.09); }
+.mission-news-item > span { display: block; color: rgba(111, 217, 231, 0.64); font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.12em; }
+.mission-news-item i { float: right; color: rgba(234, 180, 108, 0.59); font-style: normal; }
+.mission-news-item p { margin: 7px 0 0; color: rgba(217, 239, 242, 0.69); font-size: 9px; line-height: 1.48; }
+
+.mission-coreplate { display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: min(100%, 420px); padding: 8px 0 10px; color: rgba(111, 209, 223, 0.43); font: 7px 'JetBrains Mono', monospace; letter-spacing: 0.2em; text-align: center; text-shadow: 0 0 13px rgba(38, 192, 213, 0.15); }
+.mission-core-reticle { position: relative; width: min(14vw, 142px); aspect-ratio: 1; opacity: 0.38; }
+.mission-core-reticle::before,
+.mission-core-reticle::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(89, 211, 233, 0.4); border-radius: 50%; }
+.mission-core-reticle::after { inset: 15%; border-style: dashed; animation: missionSpin 35s linear infinite; }
+.mission-core-reticle i { position: absolute; top: 50%; left: 50%; width: 2px; height: 50%; transform-origin: top; background: linear-gradient(rgba(89, 211, 233, 0.6), transparent); }
+.mission-core-reticle i:nth-child(1) { transform: rotate(0deg); }
+.mission-core-reticle i:nth-child(2) { transform: rotate(120deg); }
+.mission-core-reticle i:nth-child(3) { transform: rotate(240deg); }
+.mission-coreplate small { font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.14em; }
+.mission-coreplate small b { color: var(--accent); font-weight: 400; }
+@keyframes missionSpin { to { transform: rotate(360deg); } }
+
+.mission-footer { display: flex; align-items: center; gap: 10px; min-height: 21px; color: rgba(147, 189, 196, 0.33); font: 6px 'JetBrains Mono', monospace; letter-spacing: 0.14em; white-space: nowrap; }
+.mission-footer-line { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(98, 211, 230, 0.17), transparent); }
+
+/* The ignition is now a single button in the reactor's centre. The transparent
+   layer leaves the profile and dashboard visible and usable around it. */
+.ignition { background: radial-gradient(ellipse at center, rgba(4, 18, 28, 0.14), transparent 58%); pointer-events: none; }
+.ignition-action { position: relative; display: grid; place-items: center; width: 250px; height: 250px; padding: 0; border: 0; background: transparent; color: #8beaff; cursor: pointer; font: inherit; pointer-events: auto; }
+.ignition-ring { width: 228px; height: 228px; border-color: rgba(87, 217, 245, 0.34); border-top-color: rgba(177, 250, 255, 0.96); box-shadow: 0 0 36px rgba(31, 196, 226, 0.08), inset 0 0 32px rgba(31, 196, 226, 0.06); animation: ignitionSpin 14s linear infinite; }
+.ignition-scan { position: absolute; width: 162px; height: 162px; border: 1px dashed rgba(89, 220, 244, 0.15); border-radius: 50%; animation: ignitionSpin 28s linear infinite reverse; }
+.ignition-label { position: relative; z-index: 1; gap: 9px; padding: 15px; text-shadow: 0 0 18px rgba(91, 219, 251, 0.36); }
+.ignition-word { font-size: 12px; letter-spacing: 0.34em; text-indent: 0.34em; }
+.ignition-sub { max-width: 170px; color: rgba(189, 236, 241, 0.6); font: 7px 'JetBrains Mono', monospace; letter-spacing: 0.13em; line-height: 1.55; text-align: center; }
+.ignition-key { position: absolute; bottom: -5px; color: rgba(113, 197, 209, 0.42); font: 5px 'JetBrains Mono', monospace; letter-spacing: 0.12em; white-space: nowrap; }
+.ignition-key i { color: rgba(235, 182, 108, 0.7); font-style: normal; }
+.ignition-action:hover .ignition-word { color: #efffff; text-shadow: 0 0 25px rgba(91, 219, 251, 0.9); }
+.ignition-action:focus-visible { outline: 1px solid #8beaff; outline-offset: 9px; border-radius: 50%; }
+
+@media (max-width: 1050px) {
+  .mission-control { inset-inline: 22px; }
+  .mission-grid { grid-template-columns: minmax(205px, 1fr) minmax(160px, 0.72fr) minmax(205px, 1fr); gap: 12px; }
+  .mission-card { padding: 12px 12px 11px; }
+  .mission-coreplate { font-size: 6px; }
+}
+
+@media (max-width: 900px) {
+  .mission-control { inset: 136px 14px auto; max-width: none; }
+  .mission-topline { grid-template-columns: 1fr auto; padding-bottom: 8px; }
+  .mission-demo-badge { justify-self: end; font-size: 6px; }
+  .mission-demo-badge em { display: inline; }
+  .mission-clock { display: none; }
+  .mission-grid { display: flex; gap: 10px; height: 160px; padding: 9px 0 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: rgba(81, 202, 221, 0.3) transparent; }
+  .mission-stack { display: contents; }
+  .mission-coreplate, .mission-footer { display: none; }
+  .mission-card { flex: 0 0 min(74vw, 265px); width: min(74vw, 265px); height: 132px; padding: 11px 12px 9px; }
+  .mission-module-title { margin-bottom: 7px; }
+  .mission-module-title h2 { font-size: 11px; }
+  .mission-agenda-item { min-height: 31px; grid-template-columns: 33px 9px minmax(0, 1fr); gap: 6px; padding-top: 6px; }
+  .mission-agenda-item small, .mission-priorities .mission-priority-list i { display: none; }
+  .mission-agenda-item strong { font-size: 8px; }
+  .mission-card-note { margin-top: 4px; font-size: 5px; }
+  .mission-priority-list > div { min-height: 23px; font-size: 8px; }
+  .mission-sales-hero { padding: 6px 8px; }
+  .mission-sales-hero > strong { margin: 3px 0; font-size: 20px; }
+  .mission-sales-chart { margin-top: 4px; }
+  .mission-sales-chart svg { height: 27px; }
+  .mission-sales-chart > span { display: none; }
+  .mission-sales-stats { margin-top: 4px; padding-top: 5px; }
+  .mission-sales-stats strong { font-size: 9px; }
+  .mission-sales-stats span { margin-top: 2px; }
+  .mission-campaign-source { padding: 5px 8px; font-size: 6px; }
+  .mission-campaign-stats { padding-top: 6px; }
+  .mission-campaign-stats strong { font-size: 9px; }
+  .mission-campaign-stats span { font-size: 5px; }
+  .mission-news-item { padding: 5px 0; }
+  .mission-news-item p { margin-top: 4px; font-size: 8px; }
+  .mission-footer { display: none; }
+  .ignition-action { width: 220px; height: 220px; }
+  .ignition-ring { width: 202px; height: 202px; }
+}
+
+@media (max-width: 600px) {
+  .mission-control { inset-inline: 10px; }
+  .mission-topline-title { font-size: 7px; }
+  .mission-demo-badge { font-size: 5px; letter-spacing: 0.09em; }
+  .mission-card { flex-basis: 78vw; }
+  .hud-bottom { bottom: 24px; padding: 0 12px; font-size: 6px; letter-spacing: 0.1em; }
+  .ignition-action { width: 196px; height: 196px; }
+  .ignition-ring { width: 184px; height: 184px; }
+  .ignition-key { font-size: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mission-core-reticle::after,
+  .ignition-ring,
+  .ignition-scan { animation: none; }
 }
