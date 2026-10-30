@@ -2029,6 +2029,34 @@ kbd {
   font-size: 13px;
   line-height: 1.5;
 }
+.personal-cloud-setup {
+  margin-top: 20px;
+  padding: 17px;
+  border: 1px solid rgba(98, 229, 245, 0.34);
+  background: linear-gradient(135deg, rgba(24, 105, 122, 0.2), rgba(3, 13, 20, 0.76));
+  box-shadow: inset 3px 0 rgba(98, 229, 245, 0.52);
+}
+.personal-cloud-setup-label { display: flex; align-items: center; gap: 8px; color: #7feafa; font: 8px 'JetBrains Mono', monospace; letter-spacing: 0.16em; }
+.personal-cloud-setup-label > span { width: 6px; height: 6px; border-radius: 50%; background: #6de9fb; box-shadow: 0 0 10px rgba(109, 233, 251, 0.7); }
+.personal-cloud-setup h2 { margin: 12px 0 5px; color: #effdff; font-size: 20px; font-weight: 500; letter-spacing: -0.025em; }
+.personal-cloud-setup > p { margin: 0; color: rgba(211, 232, 235, 0.77); font-size: 12px; line-height: 1.5; }
+.personal-cloud-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+.personal-cloud-primary,
+.personal-cloud-copy { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 12px; border: 1px solid rgba(98, 229, 245, 0.44); color: #e6fcff; font: 10px 'JetBrains Mono', monospace; text-decoration: none; }
+.personal-cloud-primary { background: rgba(43, 170, 188, 0.25); }
+.personal-cloud-primary:hover { background: rgba(43, 170, 188, 0.42); border-color: #62e5f5; }
+.personal-cloud-copy { background: rgba(1, 9, 14, 0.56); cursor: pointer; }
+.personal-cloud-copy:hover { border-color: #62e5f5; background: rgba(98, 229, 245, 0.1); }
+.personal-cloud-copy code,
+.personal-cloud-steps code { color: #9cecf5; font: 10px 'JetBrains Mono', monospace; }
+.personal-cloud-steps { display: grid; gap: 8px; margin: 15px 0 0; padding-left: 20px; color: rgba(198, 221, 225, 0.76); font-size: 11px; line-height: 1.5; }
+.personal-cloud-steps li::marker { color: #77e6f2; font: 10px 'JetBrains Mono', monospace; }
+.personal-cloud-links { display: flex; flex-wrap: wrap; gap: 8px 17px; margin-top: 14px; }
+.personal-cloud-links a,
+.personal-cloud-links button { padding: 0; border: 0; background: none; color: #8cd9e2; font: 9px 'JetBrains Mono', monospace; text-decoration: none; cursor: pointer; }
+.personal-cloud-links a:hover,
+.personal-cloud-links button:hover { color: #e3fcff; }
+.personal-cloud-links span { color: #62e5f5; }
 .personal-form { display: flex; flex-direction: column; gap: 15px; }
 .personal-field { position: relative; display: flex; flex-direction: column; gap: 7px; }
 .personal-field > span {
@@ -2193,15 +2221,15 @@ kbd {
   font: 8px/1.6 'JetBrains Mono', monospace;
 }
 
-@media (max-width: 900px) {
-  .personal-trigger { top: 116px; right: 28px; }
-}
 @media (max-width: 600px) {
-  .personal-trigger { top: 116px; right: 18px; min-height: 34px; gap: 7px; padding: 0 8px; }
-  .personal-trigger-mark { display: none; }
   .personal-console { padding: 30px 22px 24px; }
   .personal-intro { grid-template-columns: 1fr; gap: 8px; }
   .personal-intro p { max-width: 34ch; }
+  .personal-cloud-setup { padding: 14px; }
+  .personal-cloud-setup h2 { font-size: 18px; }
+  .personal-cloud-actions { align-items: stretch; flex-direction: column; }
+  .personal-cloud-primary,
+  .personal-cloud-copy { justify-content: space-between; width: 100%; }
   .personal-console::before { inset: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {

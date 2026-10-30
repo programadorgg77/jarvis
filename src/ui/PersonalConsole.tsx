@@ -62,12 +62,8 @@ export function PersonalConsole() {
   const [profile, setProfile] = useState<PersonalContext>(() => readPersonalContext())
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(false)
+  const [commandCopied, setCommandCopied] = useState(false)
   const connectorsRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    requestAnimationFrame(() => connectorsRef.current?.scrollIntoView({ block: 'start' }))
-  }, [open])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -108,6 +104,18 @@ export function PersonalConsole() {
   const update = <K extends keyof PersonalContext>(key: K, value: PersonalContext[K]) =>
     setProfile((current) => ({ ...current, [key]: value }))
 
+  const copySetupCommand = async () => {
+    try {
+      await navigator.clipboard.writeText('claude setup-token')
+      setCommandCopied(true)
+      window.setTimeout(() => setCommandCopied(false), 2200)
+    } catch {
+      setCommandCopied(false)
+    }
+  }
+
+  const openConnections = () => connectorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
   return (
     <>
       <button
@@ -116,10 +124,10 @@ export function PersonalConsole() {
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Abrir integrações Cloud; ${externalConnected.length} servidores conectados`}
+        aria-label={`Configurar Claude Cloud e integrações; ${externalConnected.length} servidores conectados`}
       >
         <span className="personal-trigger-mark" aria-hidden="true">C</span>
-        <span className="personal-trigger-label">Cloud · integrações</span>
+        <span className="personal-trigger-label">Conectar Cloud</span>
         <span className="personal-trigger-count" aria-label={`${externalConnected.length} conectados`}>
           {String(externalConnected.length).padStart(2, '0')}
         </span>
@@ -169,15 +177,37 @@ export function PersonalConsole() {
             >
               <header className="personal-head">
                 <div>
-                  <div className="personal-eyebrow"><span /> CONSOLE PESSOAL / 01</div>
-                  <h1 id="personal-title">Seu mundo,<br /><em>em contexto.</em></h1>
+                  <div className="personal-eyebrow"><span /> CONFIGURAÇÕES / CONEXÕES</div>
+                  <h1 id="personal-title">Configurar<br /><em>o Jarvis.</em></h1>
                 </div>
                 <button className="personal-close" onClick={() => setOpen(false)} aria-label="Fechar console pessoal">×</button>
               </header>
 
+              <section className="personal-cloud-setup" aria-labelledby="cloud-setup-title">
+                <div className="personal-cloud-setup-label"><span /> IA / CLAUDE CLOUD</div>
+                <h2 id="cloud-setup-title">Conectar a IA do Jarvis</h2>
+                <p>Conecte sua conta Claude para o Jarvis responder usando sua assinatura.</p>
+                <div className="personal-cloud-actions">
+                  <a className="personal-cloud-primary" href="https://dashboard.render.com/web/srv-dbi1h8ifngtc73c115ig/env" target="_blank" rel="noreferrer">
+                    Abrir conexão no Render <span aria-hidden="true">↗</span>
+                  </a>
+                  <button className="personal-cloud-copy" type="button" onClick={() => void copySetupCommand()}>
+                    {commandCopied ? 'Comando copiado' : 'Copiar comando'} <code>claude setup-token</code>
+                  </button>
+                </div>
+                <ol className="personal-cloud-steps">
+                  <li>Execute o comando copiado no Claude Code e entre na sua conta.</li>
+                  <li>No Render, crie <code>CLAUDE_CODE_OAUTH_TOKEN</code> com o token gerado e salve.</li>
+                </ol>
+                <nav className="personal-cloud-links" aria-label="Atalhos da conexão Claude">
+                  <a href="https://code.claude.com/docs/en/authentication#generate-a-long-lived-token" target="_blank" rel="noreferrer">Ajuda para gerar o token <span aria-hidden="true">↗</span></a>
+                  <button type="button" onClick={openConnections}>Ver integrações de e-mail, agenda e dados <span aria-hidden="true">↓</span></button>
+                </nav>
+              </section>
+
               <div className="personal-intro">
-                <span className="personal-index">MEMÓRIA PESSOAL</span>
-                <p>Conte ao Jarvis o que torna as respostas úteis para você.</p>
+                <span className="personal-index">PERFIL PESSOAL</span>
+                <p>Personalize o contexto que o Jarvis usa nas respostas.</p>
               </div>
 
               <form className="personal-form" onSubmit={save}>
