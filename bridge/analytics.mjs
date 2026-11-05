@@ -7,6 +7,7 @@ import countries from './country-centers.json' with { type: 'json' }
 const DEFAULT_SITE = 'https://www.scriptureacademy.online/'
 const DEFAULT_TITLE = 'The Letters of Paul — 13 Bible studies explained verse by verse'
 const DEFAULT_TAG = 'G-9BY1SD6H9Z'
+const DEFAULT_PROPERTY = '407490537'
 const TTL = 15_000
 const WINDOW_MINUTES = 5
 const configPath = join(homedir(), '.jarvis', 'analytics.local.json')
@@ -70,7 +71,7 @@ export function createAnalytics({ env = process.env, request = fetch, now = Date
   const ready = readFile(path, 'utf8').then(raw => { saved = validateAnalyticsConfig(JSON.parse(raw)) }).catch(() => {})
   const settings = () => validateAnalyticsConfig({
     ...saved,
-    ...(env.GOOGLE_ANALYTICS_PROPERTY_ID ? { propertyId: env.GOOGLE_ANALYTICS_PROPERTY_ID } : {}),
+    ...(env.GOOGLE_ANALYTICS_PROPERTY_ID ? { propertyId: env.GOOGLE_ANALYTICS_PROPERTY_ID } : { propertyId: DEFAULT_PROPERTY }),
     ...(env.GOOGLE_ANALYTICS_SITE_URL ? { siteUrl: env.GOOGLE_ANALYTICS_SITE_URL } : {}),
     ...(env.GOOGLE_ANALYTICS_PAGE_TITLE !== undefined ? { pageTitle: env.GOOGLE_ANALYTICS_PAGE_TITLE } : {}),
     ...(env.GOOGLE_ANALYTICS_MEASUREMENT_ID ? { measurementId: env.GOOGLE_ANALYTICS_MEASUREMENT_ID } : {}),

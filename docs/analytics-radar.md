@@ -9,7 +9,7 @@ O radar consulta relatórios reais do GA4, verifica a associação tag/proprieda
 1. Habilitar Google Analytics Data API e Google Analytics Admin API no projeto Google Cloud.
 2. Configurar uma conta de serviço. Guardar seu JSON **apenas no servidor** na variável `GOOGLE_ANALYTICS_CREDENTIALS_JSON`, nunca em variável VITE, Git ou navegador.
 3. Adicionar o e-mail da conta de serviço como **Leitor** na propriedade GA4 correspondente à tag.
-4. No Olho de Deus → Configurar página e Analytics, salvar o ID numérico da propriedade (Administrador → Detalhes da propriedade). A página Scripture Academy e seu título já estão preenchidos.
+4. No Olho de Deus → Configurar página e Analytics, salvar o ID numérico da propriedade (Administrador → Detalhes da propriedade). A página Scripture Academy e o ID `407490537` já ficam preenchidos no Jarvis.
 
 Alternativamente, configurar `GOOGLE_ANALYTICS_PROPERTY_ID`, `GOOGLE_ANALYTICS_SITE_URL`, `GOOGLE_ANALYTICS_PAGE_TITLE` e `GOOGLE_ANALYTICS_MEASUREMENT_ID` no servidor. Variáveis de ambiente têm prioridade. No Render, use as variáveis para persistir após substituição do contêiner; as configurações salvas pela interface ficam em `~/.jarvis/analytics.local.json` e podem ser perdidas no disco efêmero.
 

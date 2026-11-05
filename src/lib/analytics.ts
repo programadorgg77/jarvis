@@ -35,7 +35,7 @@ export function useLiveAnalytics(active: boolean, revision: number) {
       if (document.visibilityState === 'hidden') { timer = window.setTimeout(poll, 15_000); return }
       controller = new AbortController()
       try {
-        const response = await fetch(`${BRIDGE_HTTP_URL}/analytics/realtime`, { credentials: 'same-origin', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35_000)]) })
+        const response = await fetch(`${BRIDGE_HTTP_URL}/analytics/realtime`, { credentials: 'same-origin', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12_000)]) })
         if (!response.ok) throw new Error()
         const data = await response.json() as AnalyticsSnapshot
         if (!stopped) { setSnapshot(data); setError(null) }
