@@ -152,7 +152,7 @@ export default function App() {
       const inputWasTyped = typedTurn.current
       const response = officeMetrics
         ? `Telão configurado para ${officeMetrics.map((metric) => OFFICE_METRICS[metric].toLowerCase()).join(' e ')}. Ele acompanha os dados da última consulta da UTMify.`
-        : eyeAction ? 'Olho de Deus ativado. Observando esta página.' : 'Olho de Deus desativado.'
+        : eyeAction ? 'Olho de Deus ativado. Consultando a conexão com os visitantes da página de vendas.' : 'Olho de Deus desativado.'
       clearIdle()
       silence()
       const state = store.getState()

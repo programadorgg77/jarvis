@@ -23,6 +23,7 @@ import { chromeAvailable, chromeServer } from './chrome.mjs'
 import { visionServer } from './vision.mjs'
 import { prepareWithJev, jevStatus } from './jev.mjs'
 import { businessServer } from './business.mjs'
+import { createAnalytics } from './analytics.mjs'
 import { toolActivity } from './activity.mjs'
 import { neuralVoiceAvailable, neuralSpeech } from './neural-voice.mjs'
 import { getWorldSnapshot, worldServer } from './world.mjs'
@@ -38,6 +39,7 @@ import { createAccessGate } from './hosting-auth.mjs'
 const HOSTING = hostingConfig()
 const PORT = HOSTING.port
 const accessGate = HOSTING.deployed ? createAccessGate(HOSTING) : null
+const analytics = createAnalytics()
 
 /**
  * A crash here takes the whole assistant down mid-sentence, and most of what
@@ -750,6 +752,27 @@ const handleRequest = async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, cors)
     return res.end()
+  }
+
+  if (req.method === 'GET' && req.url === '/analytics/realtime') {
+    res.writeHead(200, { ...cors, 'content-type': 'application/json' })
+    return res.end(JSON.stringify(await analytics.snapshot()))
+  }
+  if (req.method === 'POST' && req.url === '/analytics/config') {
+    if (!origin || !originAllowed(origin)) { res.writeHead(403); return res.end('forbidden') }
+    let body = ''
+    for await (const chunk of req) {
+      body += chunk
+      if (Buffer.byteLength(body) > 4096) { res.writeHead(413); return res.end('body too large') }
+    }
+    try {
+      const config = await analytics.configure(JSON.parse(body))
+      res.writeHead(200, { ...cors, 'content-type': 'application/json' })
+      return res.end(JSON.stringify(config))
+    } catch {
+      res.writeHead(400, { ...cors, 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ error: 'Confira o ID numérico da propriedade, a URL e o título da página.' }))
+    }
   }
 
   if (req.method === 'GET' && req.url === '/health') {

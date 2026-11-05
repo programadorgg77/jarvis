@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { Line } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useStore } from '../store'
@@ -14,11 +14,13 @@ import {
 } from '../lib/googleTag'
 import type { AssistantActions } from './OcularInterface'
 import { readUtmAttribution, useUtmifyStatus } from '../lib/utmify'
+import { useLiveAnalytics, type VisitorRegion } from '../lib/analytics'
+import { AnalyticsSettings } from './AnalyticsSettings'
 
 type EventParams = Record<string, string | number | boolean | undefined>
 type TagStatus = 'not-configured' | 'loading' | 'connected' | 'error'
 type ObservedEvent = { id: number; name: string; title: string; detail: string; at: number }
-type GlobeMotion = { yaw: number; pitch: number; velocityYaw: number; velocityPitch: number; dragging: boolean }
+type GlobeMotion = { yaw: number; pitch: number; velocityYaw: number; velocityPitch: number; dragging: boolean; target?: { yaw: number; pitch: number } }
 
 const EARTH_RADIUS = 1.58
 const MAX_PITCH = 1.12
@@ -35,32 +37,30 @@ function earthPoint(latitude: number, longitude: number, radius = EARTH_RADIUS +
   )
 }
 
-const cityPoints = [
-  earthPoint(40.7, -74), earthPoint(-23.5, -46.6), earthPoint(51.5, -0.1),
-  earthPoint(35.7, 139.7), earthPoint(19.4, -99.1), earthPoint(-33.9, 18.4),
-]
-
-const routePoints = [[0, 1], [0, 2], [1, 2], [2, 3], [1, 4], [2, 5]].map(([fromIndex, toIndex]) => {
-  const from = cityPoints[fromIndex]
-  const to = cityPoints[toIndex]
-  return Array.from({ length: 41 }, (_, index) => {
-    const t = index / 40
-    return from.clone().lerp(to, t).normalize()
-      .multiplyScalar(EARTH_RADIUS + 0.018 + Math.sin(Math.PI * t) * 0.28)
+function VisitorBeacon({ region, selected }: { region: VisitorRegion; selected: boolean }) {
+  const rings = useRef<THREE.Group>(null)
+  const position = useMemo(() => earthPoint(region.lat, region.lng, EARTH_RADIUS + 0.025), [region.lat, region.lng])
+  const rotation = useMemo(() => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), position.clone().normalize()), [position])
+  const reducedMotion = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)').matches, [])
+  useFrame(({ clock }) => {
+    if (!rings.current) return
+    rings.current.children.forEach((ring, index) => {
+      const mesh = ring as THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>
+      const progress = reducedMotion ? 0.35 + index * 0.2 : (clock.elapsedTime * 0.65 + index * 0.5) % 1
+      mesh.scale.setScalar(1 + progress * 3.4)
+      mesh.material.opacity = (1 - progress) * (selected ? 0.85 : 0.6)
+    })
   })
-})
-
-function EarthNetwork() {
-  return <group>
-    {routePoints.map((points, index) => <Line key={`route-${index}`} points={points} color="#93eeff" lineWidth={0.9} transparent opacity={0.52} depthWrite={false} />)}
-    {cityPoints.map((point, index) => <mesh key={`node-${index}`} position={point.toArray()}>
-      <sphereGeometry args={[0.012, 16, 16]} />
-      <meshBasicMaterial color={index === 1 ? '#ffc17c' : '#94f4ff'} toneMapped={false} />
-    </mesh>)}
+  return <group position={position} quaternion={rotation}>
+    <mesh><sphereGeometry args={[selected ? 0.025 : 0.018, 12, 12]} /><meshBasicMaterial color="#7affc0" toneMapped={false} /></mesh>
+    <group ref={rings}>{[0, 1].map(index => <mesh key={index} position={[0, 0, 0.004]}><ringGeometry args={[0.027, 0.034, 40]} /><meshBasicMaterial color="#26ff9c" transparent opacity={0.7} depthWrite={false} toneMapped={false} side={THREE.DoubleSide} /></mesh>)}</group>
+    <Html position={[0, 0, 0.035]} center occlude zIndexRange={[4, 1]} style={{ pointerEvents: 'none' }}>
+      <span className={`god-eye-beacon-label ${selected ? 'is-selected' : ''}`}>{region.activeUsers}</span>
+    </Html>
   </group>
 }
 
-function EarthSphere({ motion }: { motion: React.RefObject<GlobeMotion> }) {
+function EarthSphere({ motion, regions, selected }: { motion: React.RefObject<GlobeMotion>; regions: VisitorRegion[]; selected: string | null }) {
   const earth = useRef<THREE.Group>(null)
   const clouds = useRef<THREE.Mesh>(null)
   const [surface, normal, specular, cloudMap, lights] = useLoader(THREE.TextureLoader, [
@@ -78,7 +78,12 @@ function EarthSphere({ motion }: { motion: React.RefObject<GlobeMotion> }) {
     if (!earth.current) return
     const state = motion.current
     const dt = Math.min(delta, 0.05)
-    if (!state.dragging) {
+    if (!state.dragging && state.target) {
+      const easing = 1 - Math.exp(-dt * 3.5)
+      state.yaw += (state.target.yaw - state.yaw) * easing
+      state.pitch += (state.target.pitch - state.pitch) * easing
+      if (Math.abs(state.target.yaw - state.yaw) + Math.abs(state.target.pitch - state.pitch) < 0.002) state.target = undefined
+    } else if (!state.dragging) {
       if (Math.hypot(state.velocityYaw, state.velocityPitch) > 0.025) {
         state.yaw += state.velocityYaw * dt
         const nextPitch = state.pitch + state.velocityPitch * dt
@@ -93,7 +98,7 @@ function EarthSphere({ motion }: { motion: React.RefObject<GlobeMotion> }) {
         state.yaw += IDLE_SPIN * dt
       }
     }
-    earth.current.rotation.set(state.pitch, state.yaw, 0, 'YXZ')
+    earth.current.rotation.set(state.pitch, state.yaw, 0, 'XYZ')
     if (clouds.current) {
       clouds.current.rotation.y += dt * 0.008
       cloudShadow.offset.value = clouds.current.rotation.y / (Math.PI * 2)
@@ -104,7 +109,7 @@ function EarthSphere({ motion }: { motion: React.RefObject<GlobeMotion> }) {
     <mesh>
       <sphereGeometry args={[EARTH_RADIUS, 128, 96]} />
       <meshPhongMaterial map={surface} normalMap={normal} normalScale={new THREE.Vector2(0.45, 0.45)}
-        specularMap={specular} specular="#244253" shininess={85}
+        specularMap={specular} specular="#101d24" shininess={32}
         emissive="#0b1c30" emissiveIntensity={0.12}
         onBeforeCompile={(shader) => {
           shader.uniforms.uCloudShadow = cloudShadow.map
@@ -159,14 +164,26 @@ function EarthSphere({ motion }: { motion: React.RefObject<GlobeMotion> }) {
           }
         `} />
     </mesh>
-    <EarthNetwork />
+    {regions.map(region => <VisitorBeacon key={region.id} region={region} selected={selected === region.id} />)}
   </group>
 }
 
-function RotatingGlobe({ onDrag }: { onDrag: () => void }) {
+function RotatingGlobe({ onDrag, regions, selected }: { onDrag: () => void; regions: VisitorRegion[]; selected: string | null }) {
   const motion = useRef<GlobeMotion>({ yaw: -0.45, pitch: 0.12, velocityYaw: 0, velocityPitch: 0, dragging: false })
   const drag = useRef<{ pointerId: number; x: number; y: number; time: number; width: number; height: number; moved: boolean } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const focusRegion = regions.find(region => region.id === selected)
+  const latitude = focusRegion?.lat
+  const longitude = focusRegion?.lng
+  useEffect(() => {
+    if (latitude == null || longitude == null) return
+    const point = earthPoint(latitude, longitude)
+    const state = motion.current
+    const yaw = -Math.atan2(point.x, point.z)
+    const difference = Math.atan2(Math.sin(yaw - state.yaw), Math.cos(yaw - state.yaw))
+    state.target = { yaw: state.yaw + difference, pitch: clamp(Math.atan2(point.y, Math.hypot(point.x, point.z)), -MAX_PITCH, MAX_PITCH) }
+    state.velocityYaw = state.velocityPitch = 0
+  }, [latitude, longitude])
 
   const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const activeDrag = drag.current
@@ -184,6 +201,7 @@ function RotatingGlobe({ onDrag }: { onDrag: () => void }) {
     const rect = event.currentTarget.getBoundingClientRect()
     drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), width: rect.width, height: rect.height, moved: false }
     motion.current.dragging = true
+    motion.current.target = undefined
     motion.current.velocityYaw = 0
     motion.current.velocityPitch = 0
     setIsDragging(true)
@@ -220,6 +238,7 @@ function RotatingGlobe({ onDrag }: { onDrag: () => void }) {
     if (!nudge) return
     event.preventDefault()
     const state = motion.current
+    state.target = undefined
     state.yaw += nudge[0]
     state.pitch = clamp(state.pitch + nudge[1], -MAX_PITCH, MAX_PITCH)
     state.velocityYaw = nudge[0] * 5
@@ -232,7 +251,7 @@ function RotatingGlobe({ onDrag }: { onDrag: () => void }) {
       <ambientLight intensity={0.46} color="#bfd9ff" />
       <directionalLight position={[-3, 3, 5]} intensity={2.65} color="#fff7ec" />
       <directionalLight position={[3, -1, -2]} intensity={0.25} color="#2d81ee" />
-      <Suspense fallback={null}><EarthSphere motion={motion} /></Suspense>
+      <Suspense fallback={null}><EarthSphere motion={motion} regions={regions} selected={selected} /></Suspense>
     </Canvas>
     <div
       className={`god-eye-globe-handle ${isDragging ? 'is-dragging' : ''}`}
@@ -285,19 +304,6 @@ function trafficSource(): string {
   }
 }
 
-function elapsed(seconds: number): string {
-  const min = Math.floor(seconds / 60).toString().padStart(2, '0')
-  const sec = (seconds % 60).toString().padStart(2, '0')
-  return `${min}:${sec}`
-}
-
-function timeLabel(timestamp: number, now: number): string {
-  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000))
-  if (seconds < 5) return 'AGORA'
-  if (seconds < 60) return `HÁ ${seconds}s`
-  return `HÁ ${Math.floor(seconds / 60)}min`
-}
-
 function HudIcon({ kind }: { kind: 'user' | 'pulse' | 'globe' | 'page' | 'screen' | 'clock' | 'network' | 'chart' }) {
   const paths = {
     user: <><circle cx="12" cy="7" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2Z"/></>,
@@ -330,15 +336,22 @@ export function OlhoDeDeus(actions: AssistantActions) {
   const [draft, setDraft] = useState('')
   const [events, setEvents] = useState<ObservedEvent[]>([])
   const [eventCount, setEventCount] = useState(0)
-  const [fiveMinuteCount, setFiveMinuteCount] = useState(0)
   const [now, setNow] = useState(() => Date.now())
-  const [startedAt, setStartedAt] = useState<number | null>(null)
   const origin = trafficSource()
   const [currentPhase, setCurrentPhase] = useState(() => useStore.getState().phase)
   const activeRef = useRef(false)
   const sequence = useRef(0)
   const eventTimes = useRef<number[]>([])
   const tagRequest = useRef(0)
+  const [analyticsRevision, setAnalyticsRevision] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
+  const { snapshot: analytics, error: analyticsError } = useLiveAnalytics(active, analyticsRevision)
+  const live = analytics?.status === 'connected' && !analyticsError && analytics.fetchedAt != null && now - analytics.fetchedAt < 45_000
+  const regions = live ? analytics.regions : []
+  const selectedRegion = regions.find(region => region.id === selectedRegionId) ?? regions[0]
+  const count = live ? analytics.activeUsers?.toLocaleString('pt-BR') ?? '—' : '—'
+  const analyticsMessage = analyticsError ?? analytics?.message ?? 'Consultando a conexão com o Google Analytics…'
 
   activeRef.current = active
 
@@ -349,7 +362,6 @@ export function OlhoDeDeus(actions: AssistantActions) {
     eventTimes.current = [...eventTimes.current.filter((time) => at - time < 300_000), at]
     setEvents((current) => [...current.slice(-59), item])
     setEventCount((count) => count + 1)
-    setFiveMinuteCount(eventTimes.current.length)
     sendGoogleTagEvent(name, params)
   }, [])
 
@@ -381,11 +393,9 @@ export function OlhoDeDeus(actions: AssistantActions) {
 
   useEffect(() => {
     if (!active) return
-    const started = Date.now()
     const id = readGoogleTagId()
     setTagId(id)
     setDraftTagId(id)
-    setStartedAt(started)
     setEvents([])
     setEventCount(0)
     eventTimes.current = []
@@ -456,7 +466,6 @@ export function OlhoDeDeus(actions: AssistantActions) {
       const current = Date.now()
       setNow(current)
       eventTimes.current = eventTimes.current.filter((time) => current - time < 300_000)
-      setFiveMinuteCount(eventTimes.current.length)
     }, 1000)
 
     return () => {
@@ -499,7 +508,6 @@ export function OlhoDeDeus(actions: AssistantActions) {
     }
   }
 
-  const recentEvents = useMemo(() => [...events].reverse(), [events])
   const activityBars = useMemo(() => {
     const bins = Array.from({ length: 12 }, () => 0)
     for (const item of events) {
@@ -512,9 +520,7 @@ export function OlhoDeDeus(actions: AssistantActions) {
 
   if (!active) return null
 
-  const elapsedSeconds = startedAt ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0
   const stateLabel = phaseNames[currentPhase] ?? 'Ativo'
-  const visibleEvents = recentEvents.slice(0, 3)
   const busy = ['thinking', 'tooling', 'speaking'].includes(phase)
   const submitCommand = (event: FormEvent) => {
     event.preventDefault()
@@ -535,41 +541,41 @@ export function OlhoDeDeus(actions: AssistantActions) {
     <main className="god-eye-stage">
       <div className="god-eye-heading"><span className="god-eye-corner" /><h1 id="god-eye-title">OLHO DE DEUS</h1><span className="god-eye-subtitle">OBSERVABILIDADE GLOBAL</span><i /></div>
 
-      <aside className="god-eye-metrics" aria-label="Métricas da sessão">
-        <section className="god-eye-metric"><span><HudIcon kind="user" />SESSÕES AO VIVO</span><strong>01</strong><small>SESSÃO LOCAL <b>● ATIVA</b></small><MiniBars values={activityBars} /></section>
-        <section className="god-eye-metric"><span><HudIcon kind="pulse" />EVENTOS · ÚLT. 5 MIN</span><strong>{fiveMinuteCount.toLocaleString('pt-BR')}</strong><small>SINAIS DESTA PÁGINA</small><MiniBars values={activityBars} /></section>
-        <section className="god-eye-origin"><span><HudIcon kind="globe" />ORIGEM DO TRÁFEGO</span><div className="god-eye-origin-body"><i className="god-eye-origin-ring"/><div><strong title={origin}>{origin}</strong><small>● SESSÃO ATUAL</small><small title={attribution.medium}>Meio <b>{attribution.medium || '—'}</b></small><small title={attribution.campaign}>Campanha <b>{attribution.campaign || '—'}</b></small></div></div></section>
-        <section className="god-eye-data-row"><label><HudIcon kind="page" />PÁGINA ATUAL</label><strong>{window.location.pathname || '/'}</strong><small>1 sessão local <span>→</span></small></section>
-        <section className="god-eye-data-row"><label><HudIcon kind="screen" />DISPOSITIVO</label><div className="god-eye-devices"><span>▯ Mobile<small>{matchMedia('(pointer: coarse)').matches ? 'ATUAL' : '—'}</small></span><span>▱ Desktop<small>{matchMedia('(pointer: fine)').matches ? 'ATUAL' : '—'}</small></span><span>▯ Tablet<small>—</small></span></div></section>
-        <section className="god-eye-data-row"><label><HudIcon kind="clock" />TEMPO NA PÁGINA</label><strong>{elapsed(elapsedSeconds)} <em>sessão atual</em></strong></section>
-        <section className="god-eye-data-row"><label><HudIcon kind="pulse" />ÚLTIMO EVENTO</label><strong className="god-eye-event-name">{visibleEvents[0]?.name ?? 'page_view'}<small>{visibleEvents[0] ? timeLabel(visibleEvents[0].at, now) : 'AGORA'}</small></strong></section>
+      <aside className="god-eye-metrics" aria-label="Visitantes da página de vendas">
+        <section className="god-eye-metric"><span><HudIcon kind="user" />VISITANTES ATIVOS</span><strong className={live && (analytics.activeUsers ?? 0) > 0 ? 'god-eye-count-active' : ''}>{count}</strong><small>ÚLTIMOS 5 MIN <b>{live ? '● GA4' : '○ SEM LEITURA'}</b></small></section>
+        <section className="god-eye-metric"><span><HudIcon kind="pulse" />EVENTOS · PÁGINA DE VENDAS</span><strong>{live ? analytics.eventCount?.toLocaleString('pt-BR') : '—'}</strong><small>GOOGLE ANALYTICS · 5 MIN</small></section>
+        <section className="god-eye-origin"><span><HudIcon kind="globe" />FONTE DOS VISITANTES</span><div className="god-eye-origin-body"><i className="god-eye-origin-ring"/><div><strong>Google Analytics 4</strong><small>{analytics?.config.measurementId ?? 'G-9BY1SD6H9Z'}</small><small>{live ? 'Leitura conectada' : 'Leitura pendente'}</small><small>Atualização a cada 15 segundos</small></div></div></section>
+        <section className="god-eye-data-row"><label><HudIcon kind="page" />PÁGINA MONITORADA</label><strong className="god-eye-site-name">{analytics?.config.siteUrl ? new URL(analytics.config.siteUrl).hostname.replace(/^www\./, '') : 'scriptureacademy.online'}</strong><small title={analytics?.config.pageTitle}>{analytics?.config.pageTitle || 'Todas as páginas do fluxo'}</small></section>
+        <section className="god-eye-data-row"><label><HudIcon kind="screen" />VISUALIZAÇÕES · 5 MIN</label><strong>{live ? analytics.pageViews?.toLocaleString('pt-BR') : '—'}</strong></section>
+        <section className="god-eye-data-row"><label><HudIcon kind="clock" />ÚLTIMA ATUALIZAÇÃO</label><strong>{analytics?.fetchedAt ? new Date(analytics.fetchedAt).toLocaleTimeString('pt-BR') : '—'} <em>{live ? 'sincronizado' : 'sem leitura'}</em></strong></section>
+        <section className="god-eye-data-row"><label><HudIcon kind="pulse" />SINAL DE PRESENÇA</label><strong className="god-eye-event-name">{live ? (analytics.activeUsers ? 'Atividade detectada' : 'Sem atividade em 5 min') : 'Conectar relatórios'}</strong></section>
       </aside>
 
-      <RotatingGlobe onDrag={() => recordEvent('globe_drag')} />
+      <RotatingGlobe onDrag={() => recordEvent('globe_drag')} regions={regions} selected={selectedRegion?.id ?? null} />
 
-      <div className="god-eye-live-label"><i className="god-eye-live-dot"/><span>RASTREAMENTO AO VIVO</span><small>MONITORAMENTO DE TAGS E EVENTOS DO SITE</small></div>
+      <div className={`god-eye-live-label god-eye-presence-status ${live ? 'is-connected' : 'is-pending'}`}><i className="god-eye-live-dot"/><span>{live ? 'RADAR DE VISITANTES' : 'RADAR SEM CONEXÃO'}</span><small>{live ? 'ATIVIDADE REAL DA PÁGINA DE VENDAS · GA4' : 'VINCULE A LEITURA DO GOOGLE ANALYTICS'}</small></div>
 
-      <div className="god-eye-callout god-eye-callout-one"><span className="god-eye-callout-title"><i/>SESSÃO AO VIVO <time>{visibleEvents[0] ? timeLabel(visibleEvents[0].at, now) : 'AGORA'}</time></span><strong><HudIcon kind="user" />Navegador atual</strong><dl><dt>Evento:</dt><dd>{visibleEvents[0]?.name ?? 'page_view'}</dd><dt>Origem:</dt><dd>{origin}</dd><dt>Página:</dt><dd>{window.location.pathname}</dd></dl></div>
-      <div className="god-eye-traffic-badge"><HudIcon kind="globe" /><div>Origem identificada<small title={attribution.campaign}>{origin} · {attribution.campaign || 'sem campanha UTM'}</small></div></div>
-      <div className="god-eye-callout god-eye-callout-two"><span className="god-eye-callout-title"><i/>GOOGLE ANALYTICS <time>GA4</time></span><strong>Visitantes em tempo real</strong><dl><dt>Usuários ativos:</dt><dd>—</dd><dt>Países / cidades:</dt><dd>—</dd><dt>Status:</dt><dd>Aguardando integração GA4</dd></dl><small>A tag envia eventos; a leitura global requer conexão ao Analytics.</small></div>
-      <div className="god-eye-callout god-eye-callout-three"><span className="god-eye-callout-title"><i/>ATRIBUIÇÃO UTMIFY</span><strong title={attribution.campaign}>{attribution.campaign || 'Acesso sem campanha'}</strong><dl><dt>Origem:</dt><dd>{origin}</dd><dt>Meio:</dt><dd>{attribution.medium || '—'}</dd><dt>UTMs:</dt><dd>{utmifyStatus === 'loaded' ? 'Script carregado' : utmifyStatus === 'error' ? 'Falha no carregamento' : 'Carregando…'}</dd></dl></div>
+      <div className="god-eye-callout god-eye-callout-one god-eye-region-card"><span className="god-eye-callout-title"><i className={selectedRegion ? 'has-presence' : ''}/>REGIÃO MONITORADA <time>{live ? 'GA4 · 5 MIN' : 'SEM DADOS'}</time></span><strong><HudIcon kind="globe" />{selectedRegion?.name ?? 'Aguardando visitantes'}</strong>{selectedRegion ? <><div className="god-eye-region-count">{selectedRegion.activeUsers}<small>visitantes ativos</small></div><p>{selectedRegion.cities.slice(0, 3).join(' · ') || 'Cidade não informada'}</p><small>Posição aproximada do país. Arraste para explorar.</small></> : <p>{live ? 'Nenhuma região com atividade informada neste período.' : 'As regiões acendem em verde quando o Analytics informar atividade.'}</p>}</div>
+      <div className="god-eye-traffic-badge"><HudIcon kind="globe" /><div>Scripture Academy<small>{live ? `${regions.length} regiões · atualização a cada 15s` : 'Página de vendas · G-9BY1SD6H9Z'}</small></div></div>
+      <div className="god-eye-callout god-eye-callout-two god-eye-presence-card"><span className="god-eye-callout-title"><i className={live && (analytics.activeUsers ?? 0) > 0 ? 'has-presence' : ''}/>PRESENÇA NA PÁGINA</span><strong className="god-eye-presence-number">{count}<small>visitantes ativos · últimos 5 min</small></strong><p role="status">{live ? (analytics.activeUsers ? 'Há atividade recente na página de vendas.' : 'Nenhum visitante ativo informado pelo GA4.') : analyticsMessage}</p>{live && analytics.fetchedAt ? <small>Atualizado às {new Date(analytics.fetchedAt).toLocaleTimeString('pt-BR')} · localização aproximada</small> : <button className="god-eye-configure" onClick={() => setSettingsOpen(true)}>CONECTAR ANALYTICS ↗</button>}</div>
+      <div className="god-eye-callout god-eye-callout-three god-eye-region-list"><span className="god-eye-callout-title">REGIÕES COM ATIVIDADE</span>{regions.length ? regions.slice(0, 4).map(region => <button key={region.id} className={selectedRegion?.id === region.id ? 'is-selected' : ''} onClick={() => setSelectedRegionId(region.id)}><i className="has-presence" /><span>{region.name}</span><b>{region.activeUsers}</b></button>) : <p>{live ? 'Sem regiões neste período' : 'Aguardando leitura da propriedade'}</p>}{live && analytics.unlocated > 0 && <small>{analytics.unlocated} visitantes sem localização informada</small>}</div>
 
-      <div className="god-eye-view-label"><span>⌜</span> ROTAS ILUSTRATIVAS · AGUARDANDO REGIÕES REAIS <span>⌟</span></div>
+      <div className="god-eye-view-label"><span>⌜</span><i className={live && regions.length ? 'has-presence' : ''} />{live ? 'VERDE · ATIVIDADE NOS ÚLTIMOS 5 MIN' : 'SEM DADOS DE PRESENÇA · CONEXÃO PENDENTE'}<span>⌟</span></div>
 
       <aside className="god-eye-tag-panel" aria-label="Conexão do Google Tag">
-        <h2><HudIcon kind="network" />RASTREAMENTO <b>{utmifyStatus === 'loaded' ? 'UTMIFY' : 'CONFIGURAR'}</b></h2>
+        <h2><HudIcon kind="network" />CONEXÃO DO RADAR <b>{live ? 'ONLINE' : 'PENDENTE'}</b></h2><button className="god-eye-configure" onClick={() => setSettingsOpen(true)}>CONFIGURAR PÁGINA E ANALYTICS ↗</button><p className="god-eye-analytics-message" role="status">{live ? 'Recebendo os relatórios da página de vendas.' : analyticsMessage}</p>
         <div className="god-eye-tag-status"><i className={`is-${tagStatus}`} /><span>{tagStatus === 'connected' ? 'GOOGLE TAG CONECTADO' : tagStatus === 'loading' ? 'CONECTANDO GOOGLE TAG' : tagStatus === 'error' ? 'GOOGLE TAG INDISPONÍVEL' : 'SINAIS LOCAIS ATIVOS'}</span></div>
-        <details className="god-eye-tag-settings"><summary>CONFIGURAR GOOGLE TAG ↗</summary><form onSubmit={(event) => void connectTag(event)}>
+        <details className="god-eye-tag-settings"><summary>TAG LOCAL DO JARVIS · AVANÇADO ↗</summary><form onSubmit={(event) => void connectTag(event)}>
           <p role="status">{tagMessage}</p>
           <label htmlFor="god-eye-tag-id">ID DA TAG</label>
           <div className="god-eye-tag-input"><input id="god-eye-tag-id" aria-label="ID da Google Tag" value={draftTagId} onChange={(event) => setDraftTagId(event.target.value)} placeholder="G-XXXXXXX ou GTM-XXXX" autoComplete="off" spellCheck={false}/><button type="submit" disabled={tagStatus === 'loading'} aria-label="Conectar Google Tag">↗</button></div>
         </form></details>
         {tagId && <small className="god-eye-tag-current">CONFIGURADA · {tagId}</small>}
-        <div className="god-eye-tag-checks"><span><i className={utmifyStatus === 'loaded' ? 'is-on' : ''} />UTMify: {utmifyStatus === 'loaded' ? 'script carregado' : utmifyStatus === 'error' ? 'falha ao carregar' : 'carregando…'}</span><span><i className={tagStatus === 'connected' ? 'is-on' : ''} />Google Tag {tagStatus === 'connected' ? 'carregado' : 'aguardando'}</span><span><i className="is-on" />Eventos da sessão ativos</span><span><i />Regiões: conectar Analytics</span></div>
+        <div className="god-eye-tag-checks"><span><i className={utmifyStatus === 'loaded' ? 'is-on' : ''} />UTMify: {utmifyStatus === 'loaded' ? 'script carregado' : utmifyStatus === 'error' ? 'falha ao carregar' : 'carregando…'}</span><span><i className={tagStatus === 'connected' ? 'is-on' : ''} />Google Tag {tagStatus === 'connected' ? 'carregado' : 'aguardando'}</span><span><i className={live ? 'is-on' : ''} />Leitura de visitantes: {live ? 'conectada' : 'pendente'}</span><span><i className={live && regions.length ? 'is-on' : ''} />Regiões com atividade: {live ? regions.length : '—'}</span></div>
         <div className="god-eye-rate"><label>EVENTOS / MIN <small>LOCAL</small></label><strong>{events.filter((item) => now - item.at < 60_000).length}</strong><MiniBars values={activityBars} /></div>
       </aside>
 
-      <aside className="god-eye-business"><section className="god-eye-panel"><h2><HudIcon kind="chart" />VENDAS & CAMPANHAS</h2><div className="god-eye-business-values"><div><small>RECEITA</small><strong>{business?.revenue != null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: business.currency, maximumFractionDigits: 0 }).format(business.revenue) : 'R$ —'}</strong></div><div><small>ROAS</small><strong>{business?.roas != null ? `${business.roas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}×` : '—'}</strong></div></div><span className="god-eye-pending" title={business ? `${business.source} · ${business.period}` : undefined}>{business ? `ÚLTIMA CONSULTA · ${business.period}` : 'AGUARDANDO CONSULTA UTMIFY'}</span><div className="god-eye-flatline" /></section><section className="god-eye-panel"><h2><HudIcon kind="globe" />CONTEXTO GLOBAL</h2><p><HudIcon kind="user" />Visitantes globais <b>—</b></p><p><HudIcon kind="globe" />Países / cidades <b>—</b></p><p><HudIcon kind="network" />Google Analytics <b>Conectar</b></p><small>O script UTM não fornece regiões. Conecte os relatórios GA4.</small></section></aside>
+      <aside className="god-eye-business"><section className="god-eye-panel"><h2><HudIcon kind="chart" />VENDAS & CAMPANHAS</h2><div className="god-eye-business-values"><div><small>RECEITA</small><strong>{business?.revenue != null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: business.currency, maximumFractionDigits: 0 }).format(business.revenue) : 'R$ —'}</strong></div><div><small>ROAS</small><strong>{business?.roas != null ? `${business.roas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}×` : '—'}</strong></div></div><span className="god-eye-pending" title={business ? `${business.source} · ${business.period}` : undefined}>{business ? `ÚLTIMA CONSULTA · ${business.period}` : 'AGUARDANDO CONSULTA UTMIFY'}</span><div className="god-eye-flatline" /></section><section className="god-eye-panel"><h2><HudIcon kind="globe" />CONTEXTO GLOBAL</h2><p><HudIcon kind="user" />Visitantes · 5 min <b>{count}</b></p><p><HudIcon kind="globe" />Países com atividade <b>{live ? regions.length : '—'}</b></p><p><HudIcon kind="network" />Google Analytics <b>{live ? 'Recebendo' : 'Pendente'}</b></p><small>Dados agregados · localização aproximada por país.</small></section></aside>
     </main>
 
     <form className="god-eye-command" onSubmit={submitCommand}>
@@ -577,6 +583,7 @@ export function OlhoDeDeus(actions: AssistantActions) {
       <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={4000} placeholder="Pergunte ao Jarvis…" aria-label="Digite um comando ao Jarvis" disabled={phase === 'boot'} />
       <button type="submit" disabled={!draft.trim() || phase === 'boot'} aria-label="Enviar comando">➤</button>
     </form>
-    <footer className="god-eye-footer"><div className="god-eye-intelligence-title">INTELIGÊNCIA<br/>CONTEXTUAL</div><div><HudIcon kind="globe" /><section><strong>CONTEXTO DA SESSÃO</strong><p>{eventCount.toLocaleString('pt-BR')} sinais · origem: {origin}.</p></section></div><div><HudIcon kind="network" /><section><strong>ATRIBUIÇÃO DE CAMPANHA</strong><p>{attribution.campaign || 'Aguardando acesso com parâmetros UTM.'}</p></section></div><div><HudIcon kind="pulse" /><section><strong>SINAIS EXTERNOS</strong><p>Jarvis: {stateLabel.toLowerCase()} · regiões aguardando Analytics.</p></section></div></footer>
+    <footer className="god-eye-footer"><div className="god-eye-intelligence-title">INTELIGÊNCIA<br/>CONTEXTUAL</div><div><HudIcon kind="globe" /><section><strong>CONTEXTO DA SESSÃO</strong><p>{eventCount.toLocaleString('pt-BR')} sinais · origem: {origin}.</p></section></div><div><HudIcon kind="network" /><section><strong>ATRIBUIÇÃO DE CAMPANHA</strong><p>{attribution.campaign || 'Aguardando acesso com parâmetros UTM.'}</p></section></div><div><HudIcon kind="pulse" /><section><strong>SINAIS EXTERNOS</strong><p>Jarvis: {stateLabel.toLowerCase()} · {live ? 'radar conectado ao GA4' : 'radar aguardando leitura GA4'}.</p></section></div></footer>
+    {settingsOpen && <AnalyticsSettings config={analytics?.config} onClose={() => setSettingsOpen(false)} onSaved={() => { setSettingsOpen(false); setAnalyticsRevision(value => value + 1) }} />}
   </section>
 }
