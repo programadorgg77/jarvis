@@ -5,6 +5,7 @@ import { Effects } from './Effects'
 import { Pointer } from './Pointer'
 import { GestureGuide } from './GestureGuide'
 import { OcularInterface, type AssistantActions } from './OcularInterface'
+import { OlhoDeDeus } from './OlhoDeDeus'
 
 export function Hud(actions: AssistantActions) {
   const phase = useStore((s) => s.phase)
@@ -18,6 +19,7 @@ export function Hud(actions: AssistantActions) {
   }, [ui.background])
   return <div className="hud ocular-shell" style={{ ['--accent' as string]: accentFor(phase, ui) }}>
     <OcularInterface {...actions} />
+    <OlhoDeDeus {...actions} />
     <Blades /><Effects /><Pointer />
     {(gestures || looking) && <div className="hands-live">{looking ? `Câmera ativa · ${looking}` : 'Controle por gestos ativo · G para desativar'}</div>}
     <GestureGuide live={gestures} />

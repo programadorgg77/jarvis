@@ -347,7 +347,7 @@ export function uiServer(emit) {
     alwaysLoad: true,
     tools: [
       tool('ui_business_snapshot',
-        'Update the financial dashboard with real business metrics AFTER reading a connected source such as UTMify. Call whenever answering a question about revenue, ad spend, orders or ROAS. Never use demonstration numbers or guess missing values: pass null for missing metrics and an empty series if daily revenue was not returned. Use numeric values, the exact currency, the source/dashboard name and a human-readable period. This updates the existing dashboard, so do not create a separate display blade for the same metrics.',
+        'Update the financial dashboard and office screen with real business metrics AFTER reading a connected source such as UTMify. Call whenever answering a question about revenue, profit, ad spend, orders or ROAS. Never use demonstration numbers or guess missing values: pass null for missing metrics and an empty series if daily revenue was not returned. Use numeric values, the exact currency, the source/dashboard name and a human-readable period. Profit must come from the source, not an estimate. This updates the existing dashboard, so do not create a separate display blade for the same metrics.',
         {
           source: z.string().min(1).max(120).describe('Source and dashboard, e.g. UTMify · Estados Unidos'),
           period: z.string().min(1).max(100).describe('Exact date range queried, e.g. 01–21 out. 2026'),
@@ -356,10 +356,11 @@ export function uiServer(emit) {
           spend: z.number().finite().nonnegative().nullable(),
           orders: z.number().int().nonnegative().nullable(),
           roas: z.number().finite().nonnegative().nullable(),
+          profit: z.number().finite().nullable().optional().describe('Profit returned by the source, including negative values. Do not estimate revenue minus ad spend; leave null if unavailable.'),
           series: z.array(z.object({ label: z.string().max(30), value: z.number().finite().nonnegative() })).max(366).describe('Daily revenue in chronological order only if provided by the source; otherwise []'),
         },
         async (args) => {
-          if ([args.revenue, args.spend, args.orders, args.roas].every((v) => v === null)) return refuse('No real metrics provided. Query the connected source first.')
+          if ([args.revenue, args.spend, args.orders, args.roas, args.profit].every((v) => v == null)) return refuse('No real metrics provided. Query the connected source first.')
           emit('business', { ...args, queriedAt: new Date().toISOString() })
           return ok('Financial dashboard updated from the queried source.')
         },

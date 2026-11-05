@@ -22,6 +22,24 @@ const ROUTES = {
 let status = enabled ? 'ready' : 'not_configured'
 let lastSuccessAt = null
 let retryAfter = 0
+// Optional routing must not hold up the actual assistant.
+const configuredBudget = Number(process.env.JARVIS_ROUTING_BUDGET_MS ?? 450)
+const routingBudget = Number.isFinite(configuredBudget) ? Math.max(150, Math.min(1800, configuredBudget)) : 450
+
+export function localRoute(text) {
+  const normal = utterance(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  if (/\b(faturamento|receita|lucro|vendas|pedidos|reembolsos)\b/.test(normal)) return 'sales'
+  if (/\b(campanhas|anuncios|roas|meta ads|investimento em anuncios)\b/.test(normal)) return 'ads'
+  if (/\b(agenda|compromissos|reunioes|calendario)\b/.test(normal)) return 'calendar'
+  if (/\b(noticias|pesquise|pesquisa na internet|busque na web)\b/.test(normal)) return 'research'
+  if (/\b(navegador|pagina aberta|aba aberta)\b/.test(normal)) return 'browser'
+  if (/^(?:oi|ola|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|tudo bem)[\s!?.]*$/.test(normal.trim())) return 'general'
+  return null
+}
+
+const withHint = (text, route) => ROUTES[route]
+  ? `${text}\n\n[Optional routing hint: ${ROUTES[route]} Treat this as a suggestion; the user's request and actual tool availability take precedence.]`
+  : text
 
 export function jevStatus() {
   return { configured: enabled, status, model, lastSuccessAt }
@@ -37,12 +55,15 @@ function utterance(text) {
 
 /** A bounded optional classifier; every failure falls back to normal Claude. */
 export async function prepareWithJev(text, signal) {
+  if (signal?.aborted) return text
+  const local = localRoute(text)
+  if (local) return withHint(text, local)
   if (!enabled || signal?.aborted || Date.now() < retryAfter) return text
   try {
     const response = await fetch('https://api.typesafe.ai/v1/systemone', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.any([AbortSignal.timeout(1800), ...(signal ? [signal] : [])]),
+      signal: AbortSignal.any([AbortSignal.timeout(routingBudget), ...(signal ? [signal] : [])]),
       body: JSON.stringify({
         model,
         state: utterance(text),

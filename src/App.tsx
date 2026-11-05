@@ -31,6 +31,9 @@ import { startAnalyser, micLevel } from './lib/audio'
 import { probeCapabilities } from './lib/capabilities'
 import { env } from './config'
 import { withPersonalContext } from './lib/personalContext'
+import { officeDisplayCommand, OFFICE_METRICS } from './lib/officeDisplay'
+import { connectUtmify, protectJarvisForms } from './lib/utmify'
+import { initialiseGoogleTag } from './lib/googleTag'
 
 /**
  * The conversation.
@@ -68,7 +71,23 @@ const BARE_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo|ei|oi)?\\s*${NAME}[\\s,.!?]*
 /** A leading vocative on a real command: "Jarvis, what's the weather". */
 const LEADING_NAME = new RegExp(`^(?:hey|hi|ok|okay|yo|ei|oi)?\\s*${NAME}\\b[\\s,.:!?-]*`, 'i')
 
+function olhoDeDeusAction(text: string): boolean | null {
+  const normalised = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  if (!/\bolho\s+de\s+deus\b/.test(normalised)) return null
+  if (/\b(desativar|desative|desativa|desligar|desligue|fechar|feche|encerrar|encerre|parar|pause|pausar)\b/.test(normalised)) return false
+  if (/\b(ativar|ative|ativa|ligar|ligue|liga|abrir|abra|iniciar|inicie|monitorar|monitore|start)\b/.test(normalised)) return true
+  const bare = normalised.replace(/\b(jarvis|o|a|por favor)\b/g, '').trim()
+  return bare === 'olho de deus' ? true : null
+}
+
 export default function App() {
+  useEffect(() => {
+    const root = document.getElementById('root')
+    const stop = root ? protectJarvisForms(root) : () => {}
+    void connectUtmify()
+    void initialiseGoogleTag()
+    return stop
+  }, [])
   const store = useStore
   const phase = useStore((s) => s.phase)
   const history = useRef<Msg[]>([])
@@ -126,12 +145,48 @@ export default function App() {
   // -- one turn -------------------------------------------------------------
 
   const respond = async (said: string): Promise<void> => {
+    const eyeAction = olhoDeDeusAction(said)
+    const officeMetrics = officeDisplayCommand(said)
+    if (eyeAction !== null || officeMetrics) {
+      const mine = ++turn.current
+      const inputWasTyped = typedTurn.current
+      const response = officeMetrics
+        ? `Telão configurado para ${officeMetrics.map((metric) => OFFICE_METRICS[metric].toLowerCase()).join(' e ')}. Ele acompanha os dados da última consulta da UTMify.`
+        : eyeAction ? 'Olho de Deus ativado. Observando esta página.' : 'Olho de Deus desativado.'
+      clearIdle()
+      silence()
+      const state = store.getState()
+      state.setError(null)
+      state.clearPanels()
+      state.clearBlades()
+      state.setCaption('')
+      state.pushTurn({ id: newId(), role: 'user', text: said })
+      state.pushTurn({ id: newId(), role: 'jarvis', text: response })
+      state.setPhase('speaking')
+      if (officeMetrics) state.setOfficeMetrics(officeMetrics)
+      else window.dispatchEvent(new CustomEvent('jarvis:olho-de-deus', { detail: { active: eyeAction } }))
+
+      const spk = createSpeaker({ onStart: () => {
+        if (mine === turn.current) store.getState().setVoice(currentVoiceName())
+      } })
+      speaker.current = spk
+      spk.push(response)
+      await spk.end()
+      if (mine !== turn.current) return
+      typedTurn.current = false
+      speaker.current = null
+      if (inputWasTyped) store.getState().setPhase('dormant')
+      else listen(FOLLOW_UP_MS)
+      return
+    }
+
     const mine = ++turn.current
     const inputWasTyped = typedTurn.current
     const stale = () => mine !== turn.current
 
     clearIdle()
     const s = store.getState()
+    window.dispatchEvent(new CustomEvent('jarvis:request', { detail: { source: inputWasTyped ? 'text' : 'voice' } }))
     s.setError(null)
     // Last turn's panels and blades go now, before the new answer starts
     // putting its own up. Anything the model marked sticky survives.
@@ -507,6 +562,8 @@ export default function App() {
       }
     })
     const warming = warm().catch((err: Error) => s.setError(`Falha ao conectar com o assistente: ${err.message}`))
+    // Independent from socket warm-up and the microphone permission/analysis.
+    const capabilityProbe = probeCapabilities()
 
     if (!usingBridge && !env.anthropicKey) {
       s.setError(
@@ -554,7 +611,7 @@ export default function App() {
     // Ask the bridge which speech engines exist before the loop starts, so the
     // first turn already uses ElevenLabs when a key is present and the browser
     // fallback when it is not — no flag, no reload.
-    await probeCapabilities()
+    await capabilityProbe
 
     // One voice loop, started once, running until the page closes.
     voice.current = await startVoice({
@@ -750,6 +807,11 @@ export default function App() {
         onAsk={(text) => {
           void (async () => {
             if (store.getState().phase === 'boot') return
+            if (store.getState().phase === 'offline' && (olhoDeDeusAction(text) !== null || officeDisplayCommand(text))) {
+              typedTurn.current = true
+              await respond(text)
+              return
+            }
             if (store.getState().phase === 'offline') await powerOn()
             if (['offline', 'boot'].includes(store.getState().phase)) return
             onSpeechStart()

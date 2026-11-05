@@ -334,6 +334,7 @@ type Item = {
 export function createSpeaker(options: { onStart?: () => void } = {}): Speaker {
   const queue: Item[] = []
   let buffer = ''
+  let queuedAny = false
   let cancelled = false
   let outLevel = 0
   let pumping = false
@@ -358,6 +359,7 @@ export function createSpeaker(options: { onStart?: () => void } = {}): Speaker {
     // and the comma before "sir" that buys the beat.
     const text = shape(sentence)
     if (!text) return
+    queuedAny = true
 
     const item: Item = { text }
     if (priority) {
@@ -721,6 +723,20 @@ export function createSpeaker(options: { onStart?: () => void } = {}): Speaker {
         enqueue(candidate)
         buffer = buffer.slice(cut)
         scanned = 0
+      }
+
+      // Start a long opening sentence at a natural clause rather than waiting
+      // for its final full stop. Decimal commas and times have no trailing
+      // whitespace and therefore cannot be mistaken for a clause boundary.
+      if (!queuedAny && buffer.length >= 60) {
+        const clauses = buffer.matchAll(/[,;:]\s+|\s[—–]\s+/g)
+        for (const match of clauses) {
+          const cut = match.index + match[0].length
+          if (cut < 50 || cut > 150) continue
+          enqueue(buffer.slice(0, cut))
+          buffer = buffer.slice(cut)
+          break
+        }
       }
 
       // Unpunctuated prose would otherwise sit here silently until the answer

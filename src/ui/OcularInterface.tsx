@@ -4,6 +4,7 @@ import { Eye } from '../scene/Eye'
 import { PersonalConsole } from './PersonalConsole'
 import { CommandIcon } from './CommandIcon'
 import { NeuralProcess } from './NeuralProcess'
+import { ProductOffice } from './ProductOffice'
 import { WorldRadar } from './WorldRadar'
 import { NeuralField } from '../scene/NeuralField'
 import { OpticReticle, OpticTelemetry } from './OpticTelemetry'
@@ -35,13 +36,14 @@ function Operations({ onAsk, busy, pulse }: { onAsk: (text: string) => void; bus
   const points = series.map((s, i) => `${i * 250 / Math.max(1, series.length - 1)},${45 - s.value / max * 40}`).join(' ')
   const periods = [{ id: 'today', name: 'DIA', query: 'de hoje' }, { id: 'week', name: 'SEM', query: 'dos últimos sete dias' }, { id: 'month', name: 'MÊS', query: 'deste mês' }, { id: 'year', name: 'ANO', query: 'deste ano' }]
   const confirmedPeriod = snapshot ? ({ today: 'today', yesterday: 'today', last_7_days: 'week', this_month: 'month', last_month: 'month', custom: '' }[snapshot.queryPeriod ?? 'custom']) : period
-  const queryFinance = (id = period) => onAsk(`Consulte a UTMify e atualize os indicadores do painel com faturamento, investimento, pedidos aprovados e ROAS ${periods.find((item) => item.id === id)?.query ?? 'de hoje'}. Use dados reais e informe o período e a moeda da fonte.`)
+  const queryFinance = (id = period) => onAsk(`Consulte a UTMify e atualize os indicadores do painel e do telão do escritório com faturamento, lucro, investimento, pedidos aprovados e ROAS ${periods.find((item) => item.id === id)?.query ?? 'de hoje'}. Use dados reais e informe o período e a moeda da fonte. Para lucro use o valor da fonte, sem estimar faturamento menos gastos; deixe indisponível se não for retornado.`)
   return <>
     <section className="reference-card ocular-telemetry"><div className="ocular-panel-heading"><span><i className="reference-square"/>01 / TELEMETRIA</span><span className={`telemetry-live ${pulse.microphone ? 'is-online' : ''}`}><i />{pulse.microphone ? 'ATIVO' : 'EM ESPERA'}</span></div>
     <div className="ocular-audio-label"><span>{phase === 'speaking' ? 'SAÍDA DE VOZ' : 'ENTRADA DE VOZ'}</span><span>PT–BR</span></div><Spectrum />
     <div className="ocular-source-line"><span>CANAL OPERACIONAL</span><b className={pulse.online ? 'source-online' : ''}>{pulse.online ? 'ONLINE' : 'EM ESPERA'}</b></div><div className="ocular-latency"><span>LATÊNCIA</span><b>{pulse.latency !== null ? `${pulse.latency} ms` : '—'}</b></div></section>
     <section className={`reference-card ocular-finance ${snapshot ? 'has-snapshot' : 'is-empty'}`} aria-labelledby="ocular-finance-title"><div className="ocular-section-label"><CommandIcon name="trend" size={17} /><h2 id="ocular-finance-title">Faturamento</h2><div className="finance-periods" aria-label="Período do faturamento">{periods.map((item) => <button key={item.id} disabled={busy} aria-pressed={confirmedPeriod === item.id} onClick={() => { setPeriod(item.id); queryFinance(item.id) }}>{item.name}</button>)}</div></div>{snapshot && <strong className="ocular-revenue">{formatMoney(snapshot.revenue, snapshot.currency)}</strong>}<span className="ocular-period">{snapshot?.period ?? 'Nenhum período consultado'}</span>
       <div className="ocular-revenue-chart"><svg viewBox="0 0 250 50" preserveAspectRatio="none" role="img" aria-label={series.length > 1 ? 'Evolução da receita consultada' : 'Aguardando série de receita'}>{series.length > 1 ? <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.4" vectorEffect="non-scaling-stroke" /> : <><path d="M0 39H250 M0 13H250" stroke="currentColor" strokeOpacity=".12" strokeDasharray="2 5"/><path d="M0 39H250" stroke="currentColor" strokeOpacity=".3"/></>}</svg></div>
+      <ProductOffice onRefresh={() => queryFinance()} busy={busy} />
       <dl className="ocular-metrics"><div><dt><CommandIcon name="receipt" size={16}/>Investimento</dt><dd>{snapshot ? formatMoney(snapshot.spend, snapshot.currency) : '—'}</dd></div><div><dt><CommandIcon name="orders" size={16}/>Pedidos aprovados</dt><dd>{snapshot?.orders?.toLocaleString('pt-BR') ?? '—'}</dd></div><div><dt><CommandIcon name="people" size={16}/>ROAS</dt><dd>{snapshot?.roas != null ? `${snapshot.roas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}×` : '—'}</dd></div></dl>
       <button className="ocular-query" disabled={busy} onClick={() => queryFinance()}><CommandIcon name="target" size={15}/><span>{snapshot ? 'Atualizar indicadores' : 'Consultar meu faturamento'}</span><CommandIcon name="arrow-up" size={13} /></button>
       <span className="ocular-data-source">{snapshot ? `${snapshot.source} · última consulta` : 'Os indicadores recebem apenas dados consultados.'}</span>
@@ -76,6 +78,7 @@ function Conversation() {
 }
 
 export function OcularInterface({ onStart, onTalk, onStop, onAsk }: AssistantActions) {
+  const godEyeActive = useStore((s) => s.godEyeActive)
   const pulse = useSystemPulse()
   const phase = useStore((s) => s.phase)
   const error = useStore((s) => s.error)
@@ -94,8 +97,8 @@ export function OcularInterface({ onStart, onTalk, onStop, onAsk }: AssistantAct
   const submit = (e: FormEvent) => { e.preventDefault(); if (!draft.trim() || phase === 'boot') return; onAsk(draft.trim()); setDraft(''); setTyping(false) }
   const count = connected.filter((id) => !internal.has(normalise(id))).length
   return <main className={`ocular-interface has-world neural-shell reference-shell ${active ? 'ocular-is-active' : 'ocular-is-idle'} ${busy ? 'neural-is-busy' : ''} ${pulse.microphone ? 'has-live-microphone' : ''} phase-${phase}`} aria-label="Interface visual do Jarvis">
-    <NeuralField />
-    <Eye />
+    {!godEyeActive && <NeuralField />}
+    {!godEyeActive && <Eye />}
     <OpticReticle />
     <OpticTelemetry pulse={pulse}/>
     <WorldRadar onAsk={onAsk} busy={busy} />

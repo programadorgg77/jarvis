@@ -273,6 +273,17 @@ Everything is optional in bridge mode. Frontend settings live in `.env.local`
 | `VITE_KOKORO_VOICE` | Voice for the Kokoro engine |
 | `VITE_USE_ELEVENLABS` | Force the ElevenLabs voice on |
 | `VITE_ANTHROPIC_API_KEY` | Direct mode only |
+| `VITE_GOOGLE_TAG_ID` | Override the configured Google tag (default `G-9BY1SD6H9Z`; accepts `G-...`, `GT-...` or `GTM-...`) |
+
+### Olho de Deus
+
+Say **“Jarvis, ativar Olho de Deus”** or type the same command to open the live
+session observatory. Add a Google tag ID in the observatory, or set
+`VITE_GOOGLE_TAG_ID` in `.env.local`. The observatory reports page interactions,
+Jarvis state changes, and session activity; it does not send dictated text,
+transcripts, audio, or form values.
+The 3D Earth uses the [Three.js example planet textures](https://github.com/mrdoob/three.js/tree/dev/examples/textures/planets) for its daytime surface, terrain normals, ocean reflections, and a separate drifting cloud layer (cloud texture from Three.js r160). A view-dependent atmospheric shader softens the horizon. Drag or swipe the globe to rotate it; the release speed carries through with natural deceleration, then the globe resumes its gentle automatic rotation. The arrow keys also adjust its orientation.
+NASA's [Earth at Night 2016](https://science.nasa.gov/earth/earth-observatory/earth-at-night/maps/) adds decorative city lights. Globe routes are decorative, not visitor locations. The dashboard shows the current browser session; global GA4 visitors and sales/campaign metrics stay unavailable until their reporting sources are integrated. Loading a Google tag enables event submission, not access to GA4 reporting.
 
 ### Adding an ElevenLabs key
 
@@ -408,3 +419,77 @@ MIT.
 The boot sound and any tracks in `public/audio/` ship with the project for the
 demo. If you go on to monetise something built on this, clearing the rights to
 that audio is your responsibility.
+
+### Product office
+
+The illustrative office has four independent worker schedules, articulated walking,
+sitting, typing, coffee breaks and a printer. Pause it or use the expand control
+for a larger view. Reduced-motion preferences stop the character animation.
+
+The rear screen follows `businessSnapshot` from the financial dashboard, including
+UTMify's reported profit (which may be negative), approved orders, revenue, ad
+spend and ROAS. It shows the source, period and last query time. It does not poll
+or invent data; `Atualizar` queries the selected financial period. A revenue chart
+appears only when the source supplies a real time series.
+
+Select up to three indicators with `Personalizar telão` or say/type
+**“Jarvis, quero que na tela apareça lucro e vendas”**. The choice persists in
+this browser. Data-query requests still go to the assistant and are not swallowed
+by display-selection commands. Missing values remain unavailable until returned
+by the connected source.
+
+### UTMify attribution in Olho de Deus
+
+The official `https://cdn.utmify.com.br/scripts/utms/latest.js` loader is installed
+once on startup, preserving the supplied `prevent-xcod-sck`, `prevent-subids`,
+and `is-stripe` attributes. `src/lib/utmify.ts` loads the readable equivalent of
+the supplied obfuscated snippet. CSP permits the vendor's exact CDN host.
+Operational Jarvis forms, UI links and proxied iframes are excluded from checkout
+URL rewriting. The vendor may retain attribution parameters in browser storage.
+
+Olho de Deus shows the loader status and the session's UTM source, medium and
+campaign, respecting the vendor storage expiration. Its sales panel mirrors the
+last financial snapshot. The UTM propagation script contains no pixel/account ID,
+visitor reporting API or geolocation feed: it cannot identify active visitors,
+countries or cities for the globe. Those require the product-site URL and an
+authorized reporting integration (for example, GA4). Until connected, globe routes
+remain explicitly illustrative and regional metrics remain unavailable.
+
+### Rendering quality and response latency
+
+The globe now uses NASA Blue Marble Next Generation's 5400×2700 December base
+map with topography and bathymetry:
+https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography-bathymetry/
+The source JPEG is stored locally as `public/earth-blue-marble-5400.jpg` (NASA / Earth Observatory).
+Clouds cast a subtle texture-based shadow and the city-light overlay fades with
+sun exposure. The initial-screen reactor/particle field unmounts while Olho de
+Deus covers it. Office DOM animation pauses outside the viewport, while hidden,
+or when paused/reduced motion is selected.
+
+Clear financial, advertising, calendar, research and browser requests receive
+fixed local routing hints without an extra classifier round trip. Ambiguous
+requests can still use optional Jev routing, with a default 450 ms deadline
+instead of 1800 ms. Set `JARVIS_ROUTING_BUDGET_MS` (150–1800) to override it.
+The configured assistant model and reasoning effort are preserved. Voice engine
+capability discovery runs alongside bridge warm-up; streamed speech may begin at
+a natural opening clause rather than waiting for the first full sentence.
+
+Verification: `node --import tsx --test src/lib/tts.test.ts src/lib/voiceInterrupt.test.ts bridge/jev-latency.test.mjs`.
+These cover audio cancellation, echo handling, decimal amounts, first-clause
+synthesis, local routing and the optional classifier timeout. They do not measure
+live model response time or external-integration latency.
+
+### Configured Google Analytics tag
+
+`G-9BY1SD6H9Z` is the default GA4 measurement ID. The asynchronous Google tag loads
+at application startup and a manual `page_view` is queued once per page/ID.
+Opening or reconnecting Olho de Deus does not duplicate that initial pageview.
+Its custom events explicitly target the selected ID and pause when the overlay
+closes. Conversation text, audio and form values are not passed to this connector;
+page and referrer URLs omit query strings. UTM source, medium and campaign can
+be supplied separately to Analytics.
+
+A `G-...` measurement ID allows event collection, not authenticated access to
+Analytics reports. Real regions/visitors on the globe still require that reporting
+connection. Changes to the local source do not update the hosted site until the
+pending Render deployment has access to its GitHub repository and service.

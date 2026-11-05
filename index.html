@@ -40,6 +40,10 @@
       have been through the bridge — script-stripped, served under their own
       tight CSP, and sandboxed at the iframe — can be framed at all.
 
+      The configured Google Tag loads at app startup. Olho de Deus additionally
+      records scoped interface events; conversation text is not sent by this
+      connector. Only the official tag CDN is permitted in script-src.
+
       The rest is loose on purpose, because the voice stack needs it:
       'wasm-unsafe-eval' and 'unsafe-eval' for the ONNX runtime and the inline
       espeak-ng WASM, blob: workers for the wake-word engine and the speech
@@ -55,7 +59,7 @@
         object-src 'none';
         frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com http://localhost:8787 http://127.0.0.1:8787;
         img-src 'self' data: blob: http://localhost:8787 http://127.0.0.1:8787;
-        script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://www.googletagmanager.com https://cdn.utmify.com.br;
         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
         font-src 'self' data: https://fonts.gstatic.com;
         connect-src 'self' data: blob: https: ws: wss: http://localhost:8787 http://127.0.0.1:8787;

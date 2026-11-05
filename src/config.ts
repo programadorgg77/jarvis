@@ -77,6 +77,9 @@ export const BRIDGE_WS_URL = str(import.meta.env.VITE_BRIDGE_URL) ?? (
 )
 export const BRIDGE_HTTP_URL = BRIDGE_WS_URL.replace(/^ws/, 'http').replace(/\/ws\/?$/, '')
 
+/** Optional Google tag ID (GA4 Google tag, Google tag, or Tag Manager). */
+export const GOOGLE_TAG_ID = str(import.meta.env.VITE_GOOGLE_TAG_ID) ?? 'G-9BY1SD6H9Z'
+
 /**
  * Speech output engine.
  *

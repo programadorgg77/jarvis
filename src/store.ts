@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { readOfficeMetrics, saveOfficeMetrics, type OfficeMetric } from './lib/officeDisplay'
 
 export type Activity = {
   id: string
@@ -230,11 +231,16 @@ export type BusinessSnapshot = {
   spend: number | null
   orders: number | null
   roas: number | null
+  profit?: number | null
   series: { label: string; value: number }[]
   queriedAt: string
 }
 
 type State = {
+  godEyeActive: boolean
+  setGodEyeActive: (active: boolean) => void
+  officeMetrics: OfficeMetric[]
+  setOfficeMetrics: (metrics: OfficeMetric[]) => void
   businessSnapshot: BusinessSnapshot | null
   setBusinessSnapshot: (snapshot: BusinessSnapshot) => void
   phase: Phase
@@ -301,6 +307,10 @@ type State = {
 }
 
 export const useStore = create<State>((set) => ({
+  godEyeActive: false,
+  setGodEyeActive: (godEyeActive) => set({ godEyeActive }),
+  officeMetrics: readOfficeMetrics(),
+  setOfficeMetrics: (officeMetrics) => { saveOfficeMetrics(officeMetrics); set({ officeMetrics }) },
   businessSnapshot: null,
   setBusinessSnapshot: (businessSnapshot) => set({ businessSnapshot }),
   phase: 'offline',

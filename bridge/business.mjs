@@ -85,6 +85,7 @@ export function businessServer(config, emit, report = () => {}) {
             source: `UTMify · ${dashboard.name}`, period: start === end ? start.split('-').reverse().join('/') : `${start.split('-').reverse().join('/')} – ${end.split('-').reverse().join('/')}`,
             currency: dashboard.currency, revenue: money(raw.comissions?.[revenueKind]),
             spend: money(raw.ads?.spent), orders: number(raw.ordersCount?.approved), roas: number(raw.analytics?.roas),
+            profit: money(raw.analytics?.profit),
             series: [], queriedAt: new Date().toISOString(),
           }
           if (snapshot.revenue === null) throw new Error('A fonte não retornou faturamento. Não estime o valor.')
